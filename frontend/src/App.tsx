@@ -6,6 +6,7 @@ import HomePage from './pages/HomePage';
 import LoginPage from './pages/LoginPage';
 import HistoryPage from './pages/HistoryPage';
 import AddResultPage from './pages/AddResultPage';
+import PredictionsPage from './pages/PredictionsPage';
 import NotFoundPage from './pages/NotFoundPage';
 
 // Protected Route Component
@@ -45,26 +46,18 @@ function App() {
             <Route element={<Layout />}>
               <Route path="/" element={<HomePage />} />
               <Route path="/history" element={<HistoryPage />} />
+              <Route path="/predictions" element={
+                <ProtectedRoute>
+                  <PredictionsPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/add-result" element={
+                <AdminRoute>
+                  <AddResultPage />
+                </AdminRoute>
+              } />
+              <Route path="*" element={<NotFoundPage />} />
             </Route>
-            
-            {/* Protected Admin Routes */}
-            <Route element={
-              <ProtectedRoute>
-                <Layout />
-              </ProtectedRoute>
-            }>
-              <Route 
-                path="/add-result" 
-                element={
-                  <AdminRoute>
-                    <AddResultPage />
-                  </AdminRoute>
-                } 
-              />
-            </Route>
-            
-            {/* 404 Route */}
-            <Route path="*" element={<NotFoundPage />} />
           </Routes>
         </AuthProvider>
       </ThemeProvider>

@@ -1,4 +1,5 @@
 const mongoose = require('mongoose');
+const moment = require('moment');
 
 const resultSchema = new mongoose.Schema({
   date: {
@@ -127,6 +128,139 @@ resultSchema.set('toObject', { virtuals: true });
 
 // Index for faster lookups
 resultSchema.index({ date: -1 });
+
+const Result = mongoose.model('Result', resultSchema);
+
+/**
+ * Get historical results within a specific time range
+ * @param {string} timeRange - Time range (e.g., '7d', '30d', '1y')
+ * @returns {Promise<Array>} Array of historical results
+ */
+resultSchema.statics.getHistoricalData = async function(timeRange = '30d') {
+  try {
+    let query = {};
+    
+    // Parse time range (e.g., '7d', '1m', '1y')
+    if (timeRange) {
+      const amount = parseInt(timeRange);
+      const unit = timeRange.replace(/\d+/g, '').toLowerCase();
+      
+      // Convert to moment.js units
+      let momentUnit;
+      switch(unit) {
+        case 'd': momentUnit = 'days'; break;
+        case 'w': momentUnit = 'weeks'; break;
+        case 'm': momentUnit = 'months'; break;
+        case 'y': momentUnit = 'years'; break;
+        default: momentUnit = 'days';
+      }
+      
+      const startDate = moment().subtract(amount, momentUnit).toDate();
+      query.date = { $gte: startDate };
+    }
+    
+    // Get and sort results by date (ascending)
+    const results = await this.find(query)
+      .sort({ date: 1 })
+      .lean();
+      
+    // Transform results to include only needed fields
+    return results.map(r => ({
+      date: r.date,
+      number: parseInt(r.close3) % 100, // Using close3 as the main number
+      open3: r.open3,
+      middle: r.middle,
+      double: r.double,
+      finalNumber: r.finalNumber
+    }));
+  } catch (error) {
+    console.error('Error fetching historical data:', error);
+    throw error;
+  }
+};
+
+/**
+ * Get the latest results
+ * @param {number} limit - Maximum number of results to return
+ * @returns {Promise<Array>} Array of recent results
+ */
+resultSchema.statics.getLatestResults = async function(limit = 100) {
+  try {
+    const results = await this.find({})
+      .sort({ date: -1 })
+      .limit(limit)
+      .lean();
+      
+    return results.map(r => ({
+      date: r.date,
+      number: parseInt(r.close3) % 100,
+      open3: r.open3,
+      middle: r.middle,
+      double: r.double,
+      finalNumber: r.finalNumber
+    })).reverse(); // Return in chronological order
+  } catch (error) {
+    console.error('Error fetching latest results:', error);
+    throw error;
+  }
+};
+
+/**
+ * Get statistics about the results
+ * @returns {Promise<Object>} Statistics about the results
+ */
+resultSchema.statics.getStats = async function() {
+  try {
+    const stats = await this.aggregate([
+      {
+        $group: {
+          _id: null,
+          total: { $sum: 1 },
+          firstDate: { $min: '$date' },
+          lastDate: { $max: '$date' },
+          // Add more aggregations as needed
+        }
+      }
+    ]);
+    
+    return stats[0] || {};
+  } catch (error) {
+    console.error('Error fetching result stats:', error);
+    throw error;
+  }
+};
+
+/**
+ * Get number frequencies within a time range
+ * @param {string} timeRange - Time range (e.g., '7d', '30d', '1y')
+ * @returns {Promise<Array>} Array of number frequencies
+ */
+resultSchema.statics.getNumberFrequencies = async function(timeRange = '30d') {
+  try {
+    let match = {};
+    
+    if (timeRange) {
+      const amount = parseInt(timeRange);
+      const unit = timeRange.replace(/\d+/g, '').toLowerCase();
+      const startDate = moment().subtract(amount, unit).toDate();
+      match.date = { $gte: startDate };
+    }
+    
+    const frequencies = await this.aggregate([
+      { $match: match },
+      { $group: { _id: '$close3', count: { $sum: 1 } } },
+      { $sort: { count: -1 } }
+    ]);
+    
+    return frequencies.map(f => ({
+      number: parseInt(f._id) % 100,
+      count: f.count
+    }));
+  } catch (error) {
+    console.error('Error calculating number frequencies:', error);
+    throw error;
+  }
+};
 
 const Result = mongoose.model('Result', resultSchema);
 

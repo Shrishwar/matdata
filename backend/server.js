@@ -11,6 +11,7 @@ const { apiLimiter, scrapeLimiter, authLimiter } = require('./middleware/rateLim
 // Import routes
 const authRoutes = require('./routes/auth');
 const { router: resultRoutes, broadcastLatestUpdate } = require('./routes/results');
+const predictionRoutes = require('./routes/predictions');
 
 const app = express();
 
@@ -27,6 +28,7 @@ app.use('/api/auth', authLimiter); // Stricter for auth
 // API Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/results', resultRoutes);
+app.use('/api/predictions', predictionRoutes);
 
 // Serve static assets in production
 if (process.env.NODE_ENV === 'production') {
