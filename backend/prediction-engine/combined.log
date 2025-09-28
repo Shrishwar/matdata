@@ -23,3 +23,68 @@
 {"level":"debug","message":"Stats - Mean: 50.48, Std: 29.06, Min: 4, Max: 99, Count: 50","service":"matka-prediction-engine","timestamp":"2025-09-28 17:58:49"}
 {"level":"debug","message":"Found 32 frequency components","service":"matka-prediction-engine","timestamp":"2025-09-28 17:58:49"}
 {"level":"debug","message":"Cluster sizes: 16, 15, 19","service":"matka-prediction-engine","timestamp":"2025-09-28 17:58:49"}
+{"level":"info","message":"Starting DP Matka Prediction Engine...","service":"matka-prediction-engine","timestamp":"2025-09-28 21:28:59"}
+{"level":"info","message":"Loading historical data...","service":"matka-prediction-engine","timestamp":"2025-09-28 21:28:59"}
+{"level":"info","message":"Loading historical data from MongoDB...","service":"matka-prediction-engine","timestamp":"2025-09-28 21:28:59"}
+{"level":"info","message":"Successfully connected to MongoDB","service":"matka-prediction-engine","timestamp":"2025-09-28 21:29:00"}
+{"level":"info","message":"Retrieved 0 historical records","service":"matka-prediction-engine","timestamp":"2025-09-28 21:29:00"}
+{"level":"warn","message":"No historical data found in database. Generating sample data...","service":"matka-prediction-engine","timestamp":"2025-09-28 21:29:00"}
+{"level":"info","message":"Generated 50 sample records","service":"matka-prediction-engine","timestamp":"2025-09-28 21:29:00"}
+{"level":"info","message":"Loaded 50 records","service":"matka-prediction-engine","timestamp":"2025-09-28 21:29:00"}
+{"level":"info","message":"Generating predictions...","service":"matka-prediction-engine","timestamp":"2025-09-28 21:29:00"}
+{"level":"info","message":"Generating predictions...","service":"matka-prediction-engine","timestamp":"2025-09-28 21:29:00"}
+{"level":"debug","message":"Stats - Mean: 49.32, Std: 26.92, Min: 2, Max: 97, Count: 50","service":"matka-prediction-engine","timestamp":"2025-09-28 21:29:00"}
+{"level":"debug","message":"Found 32 frequency components","service":"matka-prediction-engine","timestamp":"2025-09-28 21:29:00"}
+{"level":"debug","message":"Cluster sizes: 22, 15, 13","service":"matka-prediction-engine","timestamp":"2025-09-28 21:29:00"}
+{"level":"info","message":"Starting DP Matka Prediction Engine...","service":"matka-prediction-engine","timestamp":"2025-09-28 21:29:25"}
+{"level":"info","message":"Loading historical data...","service":"matka-prediction-engine","timestamp":"2025-09-28 21:29:25"}
+{"level":"info","message":"Loading historical data from MongoDB...","service":"matka-prediction-engine","timestamp":"2025-09-28 21:29:25"}
+{"level":"info","message":"Successfully connected to MongoDB","service":"matka-prediction-engine","timestamp":"2025-09-28 21:29:26"}
+{"level":"info","message":"Retrieved 0 historical records","service":"matka-prediction-engine","timestamp":"2025-09-28 21:29:26"}
+{"level":"warn","message":"No historical data found in database. Generating sample data...","service":"matka-prediction-engine","timestamp":"2025-09-28 21:29:26"}
+{"level":"info","message":"Generated 50 sample records","service":"matka-prediction-engine","timestamp":"2025-09-28 21:29:26"}
+{"level":"info","message":"Loaded 50 records","service":"matka-prediction-engine","timestamp":"2025-09-28 21:29:26"}
+{"level":"info","message":"Generating predictions...","service":"matka-prediction-engine","timestamp":"2025-09-28 21:29:26"}
+{"level":"info","message":"Generating predictions...","service":"matka-prediction-engine","timestamp":"2025-09-28 21:29:26"}
+{"level":"debug","message":"Stats - Mean: 47.42, Std: 29.70, Min: 0, Max: 97, Count: 50","service":"matka-prediction-engine","timestamp":"2025-09-28 21:29:26"}
+{"level":"debug","message":"Found 32 frequency components","service":"matka-prediction-engine","timestamp":"2025-09-28 21:29:26"}
+{"level":"debug","message":"Cluster sizes: 13, 20, 17","service":"matka-prediction-engine","timestamp":"2025-09-28 21:29:26"}
+{"level":"info","message":"Starting DP Matka Prediction Engine...","service":"matka-prediction-engine","timestamp":"2025-09-28 21:29:53"}
+{"level":"info","message":"Loading historical data...","service":"matka-prediction-engine","timestamp":"2025-09-28 21:29:53"}
+{"level":"info","message":"Loading historical data from MongoDB...","service":"matka-prediction-engine","timestamp":"2025-09-28 21:29:53"}
+{"level":"info","message":"Successfully connected to MongoDB","service":"matka-prediction-engine","timestamp":"2025-09-28 21:29:53"}
+{"level":"info","message":"Retrieved 0 historical records","service":"matka-prediction-engine","timestamp":"2025-09-28 21:29:53"}
+{"level":"warn","message":"No historical data found in database. Generating sample data...","service":"matka-prediction-engine","timestamp":"2025-09-28 21:29:53"}
+{"level":"info","message":"Generated 50 sample records","service":"matka-prediction-engine","timestamp":"2025-09-28 21:29:53"}
+{"level":"info","message":"Loaded 50 records","service":"matka-prediction-engine","timestamp":"2025-09-28 21:29:53"}
+{"level":"info","message":"Generating predictions...","service":"matka-prediction-engine","timestamp":"2025-09-28 21:29:53"}
+{"level":"info","message":"Generating predictions...","service":"matka-prediction-engine","timestamp":"2025-09-28 21:29:53"}
+{"level":"debug","message":"Stats - Mean: 48.54, Std: 27.33, Min: 0, Max: 97, Count: 50","service":"matka-prediction-engine","timestamp":"2025-09-28 21:29:53"}
+{"level":"debug","message":"Found 32 frequency components","service":"matka-prediction-engine","timestamp":"2025-09-28 21:29:53"}
+{"level":"debug","message":"Cluster sizes: 20, 13, 17","service":"matka-prediction-engine","timestamp":"2025-09-28 21:29:53"}
+{"level":"info","message":"Starting DP Matka Prediction Engine...","service":"matka-prediction-engine","timestamp":"2025-09-28 21:30:14"}
+{"level":"info","message":"Loading historical data...","service":"matka-prediction-engine","timestamp":"2025-09-28 21:30:14"}
+{"level":"info","message":"Loading historical data from MongoDB...","service":"matka-prediction-engine","timestamp":"2025-09-28 21:30:14"}
+{"level":"info","message":"Successfully connected to MongoDB","service":"matka-prediction-engine","timestamp":"2025-09-28 21:30:15"}
+{"level":"info","message":"Retrieved 0 historical records","service":"matka-prediction-engine","timestamp":"2025-09-28 21:30:15"}
+{"level":"warn","message":"No historical data found in database. Generating sample data...","service":"matka-prediction-engine","timestamp":"2025-09-28 21:30:15"}
+{"level":"info","message":"Generated 50 sample records","service":"matka-prediction-engine","timestamp":"2025-09-28 21:30:15"}
+{"level":"info","message":"Loaded 50 records","service":"matka-prediction-engine","timestamp":"2025-09-28 21:30:15"}
+{"level":"info","message":"Generating predictions...","service":"matka-prediction-engine","timestamp":"2025-09-28 21:30:15"}
+{"level":"info","message":"Generating predictions...","service":"matka-prediction-engine","timestamp":"2025-09-28 21:30:15"}
+{"level":"debug","message":"Stats - Mean: 50.96, Std: 29.97, Min: 0, Max: 96, Count: 50","service":"matka-prediction-engine","timestamp":"2025-09-28 21:30:15"}
+{"level":"debug","message":"Found 32 frequency components","service":"matka-prediction-engine","timestamp":"2025-09-28 21:30:15"}
+{"level":"debug","message":"Cluster sizes: 21, 14, 15","service":"matka-prediction-engine","timestamp":"2025-09-28 21:30:15"}
+{"level":"info","message":"Starting DP Matka Prediction Engine...","service":"matka-prediction-engine","timestamp":"2025-09-28 21:30:38"}
+{"level":"info","message":"Loading historical data...","service":"matka-prediction-engine","timestamp":"2025-09-28 21:30:38"}
+{"level":"info","message":"Loading historical data from MongoDB...","service":"matka-prediction-engine","timestamp":"2025-09-28 21:30:38"}
+{"level":"info","message":"Successfully connected to MongoDB","service":"matka-prediction-engine","timestamp":"2025-09-28 21:30:39"}
+{"level":"info","message":"Retrieved 0 historical records","service":"matka-prediction-engine","timestamp":"2025-09-28 21:30:39"}
+{"level":"warn","message":"No historical data found in database. Generating sample data...","service":"matka-prediction-engine","timestamp":"2025-09-28 21:30:39"}
+{"level":"info","message":"Generated 50 sample records","service":"matka-prediction-engine","timestamp":"2025-09-28 21:30:39"}
+{"level":"info","message":"Loaded 50 records","service":"matka-prediction-engine","timestamp":"2025-09-28 21:30:39"}
+{"level":"info","message":"Generating predictions...","service":"matka-prediction-engine","timestamp":"2025-09-28 21:30:39"}
+{"level":"info","message":"Generating predictions...","service":"matka-prediction-engine","timestamp":"2025-09-28 21:30:39"}
+{"level":"debug","message":"Stats - Mean: 46.06, Std: 27.65, Min: 1, Max: 99, Count: 50","service":"matka-prediction-engine","timestamp":"2025-09-28 21:30:39"}
+{"level":"debug","message":"Found 32 frequency components","service":"matka-prediction-engine","timestamp":"2025-09-28 21:30:39"}
+{"level":"debug","message":"Cluster sizes: 15, 19, 16","service":"matka-prediction-engine","timestamp":"2025-09-28 21:30:39"}

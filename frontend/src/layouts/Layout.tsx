@@ -1,4 +1,4 @@
-import { Outlet } from 'react-router-dom';
+import { Outlet, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import { MoonIcon, SunIcon, UserCircleIcon } from '@heroicons/react/24/outline';
@@ -20,30 +20,31 @@ const Layout = () => {
                 </h1>
               </div>
               <div className="hidden sm:ml-6 sm:flex sm:space-x-8">
-                <a
-                  href="/"
+                <Link
+                  to="/"
+                  className="border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 dark:text-gray-300 dark:hover:text-white inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium"
                 >
                   Home
-                </a>
-                <a
-                  href="/history"
+                </Link>
+                <Link
+                  to="/history"
                   className="border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 dark:text-gray-300 dark:hover:text-white inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium"
                 >
                   History
-                </a>
-                <a
-                  href="/predictions"
+                </Link>
+                <Link
+                  to="/predictions"
                   className="border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 dark:text-gray-300 dark:hover:text-white inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium"
                 >
                   Predictions
-                </a>
+                </Link>
                 {user?.isAdmin && (
-                  <a
-                    href="/add-result"
+                  <Link
+                    to="/add-result"
                     className="border-transparent text-gray-500 dark:text-gray-300 hover:border-gray-300 hover:text-gray-700 dark:hover:text-white inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium"
                   >
                     Add Result
-                  </a>
+                  </Link>
                 )}
               </div>
             </div>
@@ -75,12 +76,12 @@ const Layout = () => {
                   </div>
                 </div>
               ) : (
-                <a
-                  href="/login"
+                <Link
+                  to="/login"
                   className="text-sm font-medium text-indigo-600 hover:text-indigo-500 dark:text-indigo-400 dark:hover:text-indigo-300"
                 >
                   Sign in
-                </a>
+                </Link>
               )}
             </div>
           </div>

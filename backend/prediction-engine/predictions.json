@@ -1,21 +1,49 @@
 {
-  "timestamp": "2025-09-28T12:28:49.785Z",
-  "analysis": {
-    "spectralAnalysis": {
-      "dominantFrequencies": [
-        1656,
-        108.56690275824374,
-        90.07731645061672,
-        87.34174767104565,
-        64.5697063137661
-      ],
-      "signalEnergy": 3650240
+  "timestamp": "2025-09-28T16:00:39.554Z",
+  "summary": {
+    "totalRecords": 50,
+    "lastNumber": 69,
+    "isRandom": true,
+    "runsTest": {
+      "runs": 0,
+      "expectedRuns": 0,
+      "zScore": 0,
+      "pValue": 0,
+      "isRandom": true
     },
+    "topPredictions": [
+      {
+        "number": 66,
+        "score": 1,
+        "confidence": 100
+      },
+      {
+        "number": 69,
+        "score": 0.8,
+        "confidence": 90
+      },
+      {
+        "number": 61,
+        "score": 0.6,
+        "confidence": 80
+      },
+      {
+        "number": 60,
+        "score": 0.4,
+        "confidence": 70
+      },
+      {
+        "number": 62,
+        "score": 0.19999999999999996,
+        "confidence": 60
+      }
+    ],
+    "accuracy": 0.17808073221020337,
     "modelMetrics": {
-      "accuracy": 0.35529332242803335,
-      "precision": 0.10409911143417627,
-      "recall": 0.47223010319896574,
-      "f1Score": 0.23205677846644845,
+      "accuracy": 0.17808073221020337,
+      "precision": 0.4489783049737296,
+      "recall": 0.504572614236231,
+      "f1Score": 0.6934193681663811,
       "confusionMatrix": [
         [
           0,
@@ -26,7 +54,70 @@
           0
         ]
       ],
-      "lastUpdated": "2025-09-28T12:28:49.777Z"
+      "lastUpdated": "2025-09-28T16:00:39.550Z"
+    },
+    "dataRange": {
+      "startDate": "2025-08-10T16:00:39.500Z",
+      "endDate": "2025-09-28T16:00:39.500Z",
+      "totalDays": 49,
+      "recordCount": 50
+    },
+    "analysisTime": "2025-09-28T16:00:39.550Z"
+  },
+  "predictions": [
+    {
+      "number": 66,
+      "score": 1,
+      "confidence": 100
+    },
+    {
+      "number": 69,
+      "score": 0.8,
+      "confidence": 90
+    },
+    {
+      "number": 61,
+      "score": 0.6,
+      "confidence": 80
+    },
+    {
+      "number": 60,
+      "score": 0.4,
+      "confidence": 70
+    },
+    {
+      "number": 62,
+      "score": 0.19999999999999996,
+      "confidence": 60
+    }
+  ],
+  "analysis": {
+    "spectralAnalysis": {
+      "dominantFrequencies": [
+        1442,
+        64.11326698774867,
+        38.343590184532204,
+        313.5974979265837,
+        94.016867436724
+      ],
+      "signalEnergy": 2819072.000000001
+    },
+    "modelMetrics": {
+      "accuracy": 0.17808073221020337,
+      "precision": 0.4489783049737296,
+      "recall": 0.504572614236231,
+      "f1Score": 0.6934193681663811,
+      "confusionMatrix": [
+        [
+          0,
+          0
+        ],
+        [
+          0,
+          0
+        ]
+      ],
+      "lastUpdated": "2025-09-28T16:00:39.550Z"
     }
   }
 }

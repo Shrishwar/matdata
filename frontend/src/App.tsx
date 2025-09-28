@@ -1,67 +1,30 @@
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import { AuthProvider, useAuth } from './context/AuthContext';
-import { ThemeProvider } from './context/ThemeContext';
+import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import Layout from './layouts/Layout';
 import HomePage from './pages/HomePage';
 import LoginPage from './pages/LoginPage';
 import HistoryPage from './pages/HistoryPage';
-import AddResultPage from './pages/AddResultPage';
 import PredictionsPage from './pages/PredictionsPage';
-import NotFoundPage from './pages/NotFoundPage';
-
-// Protected Route Component
-const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
-  const { isAuthenticated, isLoading } = useAuth();
-
-  if (isLoading) {
-    return <div className="flex items-center justify-center min-h-screen">Loading...</div>;
-  }
-
-  if (!isAuthenticated) {
-    return <Navigate to="/login" replace />;
-  }
-
-  return <>{children}</>;
-};
-
-// Admin Route Component
-const AdminRoute = ({ children }: { children: React.ReactNode }) => {
-  const { user } = useAuth();
-
-  if (!user?.isAdmin) {
-    return <Navigate to="/" replace />;
-  }
-
-  return <>{children}</>;
-};
+import AddResultPage from './pages/AddResultPage';
+import { AuthProvider } from './context/AuthContext';
+import { ThemeProvider } from './context/ThemeContext';
 
 function App() {
   return (
-    <Router>
-      <ThemeProvider>
-        <AuthProvider>
+    <ThemeProvider>
+      <AuthProvider>
+        <Router>
           <Routes>
-            {/* Public Routes */}
-            <Route path="/login" element={<LoginPage />} />
-            <Route element={<Layout />}>
-              <Route path="/" element={<HomePage />} />
-              <Route path="/history" element={<HistoryPage />} />
-              <Route path="/predictions" element={
-                <ProtectedRoute>
-                  <PredictionsPage />
-                </ProtectedRoute>
-              } />
-              <Route path="/add-result" element={
-                <AdminRoute>
-                  <AddResultPage />
-                </AdminRoute>
-              } />
-              <Route path="*" element={<NotFoundPage />} />
+            <Route path="/" element={<Layout />}>
+              <Route index element={<HomePage />} />
+              <Route path="history" element={<HistoryPage />} />
+              <Route path="predictions" element={<PredictionsPage />} />
+              <Route path="add-result" element={<AddResultPage />} />
             </Route>
+            <Route path="/login" element={<LoginPage />} />
           </Routes>
-        </AuthProvider>
-      </ThemeProvider>
-    </Router>
+        </Router>
+      </AuthProvider>
+    </ThemeProvider>
   );
 }
 

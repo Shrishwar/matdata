@@ -262,6 +262,6 @@ resultSchema.statics.getNumberFrequencies = async function(timeRange = '30d') {
   }
 };
 
-const Result = mongoose.model('Result', resultSchema);
+
 
 module.exports = Result;

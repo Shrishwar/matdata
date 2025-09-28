@@ -15,6 +15,8 @@ const predictionRoutes = require('./routes/predictions');
 
 const app = express();
 
+module.exports = app; // Export for testing
+
 // Middleware
 app.use(cors());
 app.use(express.json());
@@ -101,7 +103,7 @@ process.on('unhandledRejection', (err, promise) => {
 const startServer = async () => {
   try {
     await connectDB();
-    
+
     const PORT = process.env.PORT || 5000;
     const server = app.listen(PORT, () => {
       console.log(`Server running in ${process.env.NODE_ENV || 'development'} mode on port ${PORT}`);
@@ -181,11 +183,15 @@ const startServer = async () => {
 
     console.log('Cron job scheduled for scrape every 60 seconds');
 
-    module.exports = server; // For testing
+    return server;
   } catch (error) {
     console.error('Failed to start server:', error);
     process.exit(1);
   }
 };
 
-startServer();
+if (require.main === module) {
+  startServer();
+}
+
+module.exports = app;

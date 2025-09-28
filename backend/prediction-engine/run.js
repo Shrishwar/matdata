@@ -82,7 +82,10 @@ async function main() {
     const outputPath = join(__dirname, 'predictions.json');
     fs.writeFileSync(outputPath, JSON.stringify({
       timestamp: new Date().toISOString(),
-      analysis: predictions.analysis
+      summary: predictions.summary,
+      predictions: predictions.predictions,
+      analysis: predictions.analysis,
+      predictionTable: predictions.predictionTable
     }, null, 2));
     logger.info(`Predictions saved to: ${outputPath}`);
     

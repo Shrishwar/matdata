@@ -1,30 +1,94 @@
-# TODO: Fix Data Mismatch in History and Live DPBoss Verification
+# TODO: Implement Advanced DP Matka Prediction Engine
 
-## Step 1: Verify Current Data Mismatch
-- [x] Manually trigger fresh scrape via API (/fetch-latest and /scrape-history) and check logs for errors.
-- [x] Use browser_action to load DPBoss URL and screenshot table for manual comparison.
-- [x] Compare DB history (/results/history) with source screenshot to identify specific mismatches (dates, values). Mismatch confirmed: Future dates (e.g., 2025) scraped due to no future-skip logic; last source row is 22/09/2025-26/09/2025 with Friday: open3=678, middle=17, close3=700.
+## Overview
+Enhance the existing MatkaPredictor class to perform all 15 specified analyses automatically in sequence, outputting results ready for UI dashboard (tables, charts via JSON).
 
-## Step 2: Debug Scraper
-- [x] Update dpbossScraper.js: Add logging for full table HTML snippet, improve date parsing, handle variable columns.
-- [x] Fix Friday extraction logic (dynamic offset), add Puppeteer retries.
-- [x] Test scrapeLatest() and getLiveExtracted() isolated, log extracted data. Added future-date skips in scrapeHistory, getLiveExtracted, scrapeLatest, bulkScrape.
+## Status: Implementation Complete - Testing and Integration Pending
 
-## Step 3: Update API for Better Verification
-- [ ] Enhance /fetch-latest: Return full live row HTML/text if !liveMatch.
-- [ ] Add /results/verify-live endpoint for side-by-side DB vs. live comparison.
-- [ ] Update /results/history to optionally include latest data.
+## Completed Steps
 
-## Step 4: Frontend Improvements
-- [ ] Add "Verify Live" button in HistoryPage.tsx to call /fetch-latest and display liveMatch status.
-- [ ] Show mismatch details in a modal (live values).
-- [ ] Integrate SSE for real-time updates on scrapes.
+### ✅ 1. Update Dependencies
+- Added required npm packages: `simple-statistics`, `ml-regression`, `ml-matrix`, `ml-cart`, `fft-js`, `mathjs`, `mongodb`, `winston`.
+- Ran `npm install` in prediction-engine folder.
 
-## Step 5: DB and Seeding
-- [x] Run full scrapeHistory() to repopulate DB if stale. (Running; will skip futures now)
-- [x] Add script to clear invalid entries (weekends, invalid formats). Cleared future results (0 deleted, but confirmed via query).
+### ✅ 2. Data Preparation
+- Added `prepareData()` method: Remove duplicates, filter valid numbers.
+- Updated `loadData()` to extract tens/units digits.
+- Made tens/units required in HistoricalData interface.
 
-## Step 6: Testing and Monitoring
-- [ ] Test end-to-end: Scrape → DB → API → Frontend.
-- [ ] Add logging to backend/logs for scrape events.
-- [ ] Confirm no mismatches post-fixes.
+### ✅ 3. Frequency Analysis
+- Implemented `performFrequencyAnalysis()`: Frequency maps, histogram, over/underrepresented numbers.
+- Output: numberFreq, digitFreq, histogram, overrepresented, underrepresented.
+
+### ✅ 4. Chi-Square Test
+- Implemented `performChiSquareTest()`: Test uniformity with chi-square statistic.
+- Output: chiSquare, pValue, isRandom, degreesOfFreedom, deviatingNumbers.
+
+### ✅ 5. Autocorrelation Analysis
+- Implemented `performAutocorrelationAnalysis()`: Lag correlations 1-10.
+- Output: lags, correlations, graphData.
+
+### ✅ 6. Transition / Markov Matrix
+- Implemented `buildMarkovMatrix()`: First and second-order transition matrices.
+- Output: firstOrder, secondOrder, steadyStateProbs.
+
+### ✅ 7. Runs Test (Median-Based)
+- Implemented `performRunsTest()`: Detect clustering/serial dependence.
+- Output: runs, expectedRuns, zScore, pValue, isRandom.
+
+### ✅ 8. Weighted Moving Average / Exponential Smoothing
+- Implemented `performTrendAnalysis()`: EMA smoothing and trend detection.
+- Output: smoothedSeries, trend, probableNumbers.
+
+### ✅ 9. Bayesian Updating
+- Implemented `performBayesianUpdate()`: Update probabilities with new data.
+- Output: updatedProbs Map.
+
+### ✅ 10. Digit Correlation Analysis
+- Implemented `performDigitCorrelation()`: Tens/units pair analysis.
+- Output: correlationMatrix, frequentPairs.
+
+### ✅ 11. Machine Learning Classifier
+- Implemented `trainMLClassifier()`: Decision Tree on features (prev number, digits, freq, trend).
+- Output: model, featureImportance, probs.
+
+### ✅ 12. Monte Carlo Simulation
+- Implemented `performMonteCarloSimulation()`: 10,000 simulations using Markov chains.
+- Output: occurrence Map.
+
+### ✅ 13. Confidence Scoring and Ranking
+- Implemented `computeConfidenceScores()`: Weighted ensemble scoring.
+- Output: rankedNumbers with scores and confidence.
+
+### ✅ 14. Ensemble / Final Prediction
+- Implemented `generateEnsemblePredictions()`: Top numbers from confidence ranking.
+- Output: finalPredictions with table data.
+
+### ✅ 15. Output Ready for UI
+- Updated `generatePredictions()` return type with full analysis results and predictionTable.
+- Structured JSON for React dashboard compatibility.
+
+## Remaining Steps
+
+### 16. Testing and Validation
+- Test with sample data.
+- Ensure reproducibility.
+- Add error handling.
+
+### 17. Integration
+- Update routes/predictions.js to call enhanced generatePredictions.
+- Frontend: Update PredictionsPage to display charts/tables from JSON.
+
+## Files to Edit
+- backend/prediction-engine/package.json: Add deps.
+- backend/prediction-engine/src/services/prediction/matkaPredictor.ts: Add all analysis methods, update generatePredictions.
+- backend/routes/predictions.js: Ensure API calls the method.
+- frontend/src/pages/PredictionsPage.tsx: Display results.
+
+## Dependent Files
+- None new, enhance existing.
+
+## Followup Steps
+- Install deps.
+- Test engine.
+- Deploy and verify UI integration.
