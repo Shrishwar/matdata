@@ -1,0 +1,44 @@
+{
+  "name": "matka-platform-backend",
+  "version": "1.0.0",
+  "description": "Backend for Matka-Style Entertainment Number Guessing Platform",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "server": "nodemon server.js",
+    "seed": "node seed.js",
+    "test": "echo \"Error: no tests yet\" && exit 0"
+  },
+  "keywords": [
+    "matka",
+    "gaming",
+    "entertainment",
+    "guessing"
+  ],
+  "author": "",
+  "license": "MIT",
+  "type": "commonjs",
+  "dependencies": {
+    "axios": "^1.12.2",
+    "bcryptjs": "^2.4.3",
+    "bull": "^4.12.2",
+    "cheerio": "^1.1.2",
+    "cors": "^2.8.5",
+    "dotenv": "^16.6.1",
+    "express": "^4.21.2",
+    "express-rate-limit": "^7.1.5",
+    "jsonwebtoken": "^9.0.2",
+    "mongoose": "^7.8.7",
+    "multer": "^2.0.2",
+    "node-cache": "^5.1.2",
+    "node-cron": "^4.2.1",
+    "pdf-parse": "^1.1.1",
+    "puppeteer": "^21.11.0",
+    "python-shell": "^5.0.0",
+    "tesseract.js": "^6.0.1",
+    "winston": "^3.13.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.10"
+  }
+}
