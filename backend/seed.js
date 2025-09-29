@@ -2,33 +2,7 @@ require('dotenv').config();
 const mongoose = require('mongoose');
 const Result = require('./models/Result');
 const User = require('./models/User');
-
-// Generate a random 3-digit number as string
-const random3Digit = () => Math.floor(100 + Math.random() * 900).toString();
-
-// Generate a random 2-digit number as string
-const random2Digit = () => Math.floor(10 + Math.random() * 90).toString().padStart(2, '0');
-
-// Generate sample results
-const generateSampleResults = (count = 30) => {
-  const results = [];
-  const today = new Date();
-  
-  for (let i = 0; i < count; i++) {
-    const date = new Date(today);
-    date.setDate(date.getDate() - i);
-    
-    results.push({
-      date,
-      open3: random3Digit(),
-      close3: random3Digit(),
-      middle: random2Digit(),
-      double: random2Digit()
-    });
-  }
-  
-  return results;
-};
+const { scrapeHistory } = require('./services/scraper/dpbossScraper');
 
 const seedDatabase = async () => {
   try {
@@ -40,14 +14,14 @@ const seedDatabase = async () => {
     
     console.log('Connected to MongoDB');
     
-    // Clear existing data
+    // Clear existing results to remove any random data
     await Result.deleteMany({});
-    console.log('Cleared existing results');
+    console.log('Cleared existing results from database');
     
-    // Generate and insert sample results
-    const sampleResults = generateSampleResults(30);
-    await Result.insertMany(sampleResults);
-    console.log(`Inserted ${sampleResults.length} sample results`);
+    // Always scrape real DPBoss history
+    console.log('Scraping real DPBoss history...');
+    const scrapedCount = await scrapeHistory();
+    console.log(`Scraped ${scrapedCount} real results from DPBoss`);
     
     // Create admin user if it doesn't exist
     const adminUser = await User.findOne({ username: 'admin' });

@@ -18,7 +18,10 @@ const app = express();
 module.exports = app; // Export for testing
 
 // Middleware
-app.use(cors());
+app.use(cors({
+  origin: ['http://localhost:5173', 'http://localhost:5174', 'http://localhost:3000'],
+  credentials: true
+}));
 app.use(express.json());
 
 // Rate limiting
@@ -55,6 +58,8 @@ app.use((err, req, res, next) => {
   });
 });
 
+const Result = require('./models/Result');
+
 // Connect to MongoDB
 const connectDB = async () => {
   try {
@@ -63,6 +68,17 @@ const connectDB = async () => {
       useUnifiedTopology: true,
     });
     console.log('MongoDB connected successfully');
+
+    // Initial full scrape if low data
+    const existingCount = await Result.countDocuments();
+    if (existingCount < 10) {
+      console.log('Low data in DB, performing initial full scrape from DPBoss...');
+      const { scrapeHistory } = require('./services/scraper/dpbossScraper');
+      const scrapedCount = await scrapeHistory();
+      console.log(`Initial scrape completed: ${scrapedCount} real results added`);
+    } else {
+      console.log(`DB has sufficient data (${existingCount} records), skipping initial full scrape`);
+    }
 
     // Create admin user if it doesn't exist
     await createAdminUser();
@@ -112,11 +128,18 @@ const startServer = async () => {
     // Store previous latest for change detection
     let previousLatest = null;
 
-    // Schedule scrape every 60 seconds
-    cron.schedule('*/1 * * * *', async () => {
+    // Schedule live scrape every 30 minutes on Mon-Fri only
+    cron.schedule('*/30 * * * 1-5', async () => {
       try {
+        const now = new Date();
+        const dayOfWeek = now.getDay();
+        if (dayOfWeek === 0 || dayOfWeek === 6) {
+          console.log('Weekend - skipping live scrape');
+          return;
+        }
+
         const latest = await scrapeLatest();
-        console.log('Cron scrape completed:', latest.date);
+        console.log('Cron live scrape completed:', latest.date);
 
         // Check if there's a change
         const hasChanged = !previousLatest ||
@@ -181,7 +204,7 @@ const startServer = async () => {
         .map(g => ({ double: g.double, confidence: Math.round(g.score) + '%' }));
     }
 
-    console.log('Cron job scheduled for scrape every 60 seconds');
+    console.log('Cron job scheduled for scrape every 30 minutes on weekdays');
 
     return server;
   } catch (error) {

@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef } from 'react';
 import { format, isToday, isYesterday } from 'date-fns';
-import { resultsAPI } from '../lib/api';
+import { resultsAPI } from '../services/api';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { ArrowPathIcon, CheckCircleIcon, WifiIcon, ExclamationTriangleIcon } from '@heroicons/react/24/outline';
 

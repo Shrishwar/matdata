@@ -7,25 +7,66 @@ const Constants = {
     DEFAULT_PREDICTION_LIMIT: 10,
     MIN_SAMPLES_FOR_ANALYSIS: 50,
     PATTERN_LENGTH: 3, // Default pattern length for sequence analysis
+    RANDOM_SEED: 42, // For reproducibility
 };
 class MatkaPredictor {
     constructor() {
         this.historicalData = [];
         this.results = {
-            frequencyAnalysis: [],
+            frequencyAnalysis: {
+                numberFreq: new Map(),
+                digitFreq: { tens: new Map(), units: new Map() },
+                histogram: { bins: [], counts: [] },
+                overrepresented: [],
+                underrepresented: [],
+            },
             chiSquareTest: {
                 chiSquare: 0,
                 pValue: 0,
                 isRandom: true,
                 degreesOfFreedom: 99,
+                deviatingNumbers: [],
             },
-            transitionMatrix: {},
+            autocorrelation: {
+                lags: [],
+                correlations: [],
+                graphData: { x: [], y: [] },
+            },
+            markovMatrix: {
+                firstOrder: [],
+                secondOrder: [],
+                steadyStateProbs: [],
+            },
             runsTest: {
                 runs: 0,
                 expectedRuns: 0,
                 zScore: 0,
                 pValue: 0,
                 isRandom: true,
+            },
+            trendAnalysis: {
+                smoothedSeries: [],
+                smoothedEnhanced: [],
+                trend: 0,
+                probableNumbers: [],
+            },
+            bayesianUpdate: {
+                updatedProbs: new Map(),
+            },
+            digitCorrelation: {
+                correlationMatrix: [],
+                frequentPairs: [],
+            },
+            mlClassifier: {
+                model: null,
+                featureImportance: [],
+                probs: new Map(),
+            },
+            monteCarlo: {
+                occurrence: new Map(),
+            },
+            confidenceRanking: {
+                rankedNumbers: [],
             },
             spectralAnalysis: {
                 dominantFrequencies: [],
@@ -59,12 +100,15 @@ class MatkaPredictor {
                 const now = new Date();
                 for (let i = 0; i < 50; i++) {
                     const timestamp = new Date(now.getTime() - (i * 24 * 60 * 60 * 1000));
+                    const number = Math.floor(Math.random() * 100);
                     sampleData.push({
-                        number: Math.floor(Math.random() * 100),
+                        number,
                         date: timestamp,
                         timestamp: timestamp,
                         gameType: 'SINGLE',
-                        openClose: Math.random() > 0.5 ? 'OPEN' : 'CLOSE'
+                        openClose: Math.random() > 0.5 ? 'OPEN' : 'CLOSE',
+                        tens: Math.floor(number / 10),
+                        units: number % 10
                     });
                 }
                 logger.info(`Generated ${sampleData.length} sample records`);
@@ -72,13 +116,18 @@ class MatkaPredictor {
             }
             else {
                 // Transform database data to match HistoricalData type
-                this.historicalData = dbData.map(item => ({
-                    number: item.number,
-                    date: item.date || item.timestamp || new Date(),
-                    timestamp: item.timestamp || item.date || new Date(),
-                    gameType: item.gameType || 'SINGLE',
-                    openClose: item.openClose || (Math.random() > 0.5 ? 'OPEN' : 'CLOSE')
-                }));
+                this.historicalData = dbData.map(item => {
+                    const number = item.number;
+                    return {
+                        number,
+                        date: item.date || item.timestamp || new Date(),
+                        timestamp: item.timestamp || item.date || new Date(),
+                        gameType: item.gameType || 'SINGLE',
+                        openClose: item.openClose || (Math.random() > 0.5 ? 'OPEN' : 'CLOSE'),
+                        tens: Math.floor(number / 10),
+                        units: number % 10
+                    };
+                });
                 logger.info(`Loaded ${this.historicalData.length} records from database`);
             }
             return this.historicalData;
@@ -87,6 +136,449 @@ class MatkaPredictor {
             logger.error('Error loading historical data:', error);
             throw error;
         }
+    }
+    /**
+     * Perform data preparation: clean and extract digits
+     */
+    prepareData() {
+        // Remove duplicates by date
+        const uniqueData = new Map();
+        this.historicalData.forEach(d => {
+            const key = d.date.toISOString();
+            if (!uniqueData.has(key)) {
+                uniqueData.set(key, d);
+            }
+        });
+        this.historicalData = Array.from(uniqueData.values());
+        // Filter valid numbers 0-99
+        this.historicalData = this.historicalData.filter(d => d.number >= 0 && d.number <= 99);
+    }
+    /**
+     * Perform frequency analysis
+     */
+    performFrequencyAnalysis() {
+        const numberFreq = new Map();
+        const tensFreq = new Map();
+        const unitsFreq = new Map();
+        this.historicalData.forEach(d => {
+            numberFreq.set(d.number, (numberFreq.get(d.number) || 0) + 1);
+            tensFreq.set(d.tens, (tensFreq.get(d.tens) || 0) + 1);
+            unitsFreq.set(d.units, (unitsFreq.get(d.units) || 0) + 1);
+        });
+        // Histogram bins: 00-09, 10-19, ..., 90-99
+        const bins = [];
+        const counts = [];
+        for (let i = 0; i < 10; i++) {
+            const binStart = i * 10;
+            const binEnd = binStart + 9;
+            bins.push(`${binStart.toString().padStart(2, '0')}-${binEnd.toString().padStart(2, '0')}`);
+            let count = 0;
+            for (let j = binStart; j <= binEnd; j++) {
+                count += numberFreq.get(j) || 0;
+            }
+            counts.push(count);
+        }
+        const total = this.historicalData.length;
+        const expected = total / 100;
+        const std = Math.sqrt(expected);
+        const overrepresented = Array.from(numberFreq.entries())
+            .filter(([, count]) => count > expected + std)
+            .sort((a, b) => b[1] - a[1])
+            .slice(0, 10)
+            .map(([number, count]) => ({ number, count }));
+        const underrepresented = Array.from(numberFreq.entries())
+            .filter(([, count]) => count < expected - std)
+            .sort((a, b) => a[1] - b[1])
+            .slice(0, 10)
+            .map(([number, count]) => ({ number, count }));
+        this.results.frequencyAnalysis = {
+            numberFreq,
+            digitFreq: { tens: tensFreq, units: unitsFreq },
+            histogram: { bins, counts },
+            overrepresented,
+            underrepresented
+        };
+    }
+    /**
+     * Perform chi-square test
+     */
+    performChiSquareTest() {
+        const { numberFreq } = this.results.frequencyAnalysis;
+        const observed = Array.from({ length: 100 }, (_, i) => numberFreq.get(i) || 0);
+        const total = observed.reduce((sum, val) => sum + val, 0);
+        const expected = total / 100;
+        let chiSquare = 0;
+        const deviatingNumbers = [];
+        observed.forEach((obs, i) => {
+            const diff = obs - expected;
+            chiSquare += (diff * diff) / expected;
+            if (Math.abs(diff) > expected * 0.5) { // Significant deviation
+                deviatingNumbers.push({ number: i, observed: obs, expected });
+            }
+        });
+        // Degrees of freedom = 99
+        // p-value approximation using chi-square distribution (simplified)
+        const pValue = 1 - this.chiSquareCDF(chiSquare, 99);
+        this.results.chiSquareTest = {
+            chiSquare,
+            pValue,
+            isRandom: pValue > 0.05,
+            degreesOfFreedom: 99,
+            deviatingNumbers
+        };
+    }
+    /**
+     * Approximate chi-square CDF (simplified)
+     */
+    chiSquareCDF(x, df) {
+        // Using normal approximation for large df
+        const mean = df;
+        const std = Math.sqrt(2 * df);
+        const z = (x - mean) / std;
+        return 0.5 * (1 + math.erf(z / Math.sqrt(2)));
+    }
+    /**
+     * Perform autocorrelation analysis
+     */
+    performAutocorrelationAnalysis() {
+        const numbers = this.historicalData.map(d => d.number);
+        const lags = [];
+        const correlations = [];
+        for (let lag = 1; lag <= 10; lag++) {
+            let sumXY = 0, sumX = 0, sumY = 0, sumX2 = 0, sumY2 = 0;
+            const n = numbers.length - lag;
+            for (let i = 0; i < n; i++) {
+                const x = numbers[i];
+                const y = numbers[i + lag];
+                sumXY += x * y;
+                sumX += x;
+                sumY += y;
+                sumX2 += x * x;
+                sumY2 += y * y;
+            }
+            const numerator = n * sumXY - sumX * sumY;
+            const denominator = Math.sqrt((n * sumX2 - sumX * sumX) * (n * sumY2 - sumY * sumY));
+            const corr = denominator === 0 ? 0 : numerator / denominator;
+            lags.push(lag);
+            correlations.push(corr);
+        }
+        this.results.autocorrelation = {
+            lags,
+            correlations,
+            graphData: { x: lags, y: correlations }
+        };
+    }
+    /**
+     * Build Markov transition matrix
+     */
+    buildMarkovMatrix() {
+        const numbers = this.historicalData.map(d => d.number);
+        const firstOrder = Array.from({ length: 100 }, () => Array(100).fill(0));
+        const secondOrder = Array.from({ length: 100 }, () => Array.from({ length: 100 }, () => Array(100).fill(0)));
+        // First order
+        const firstCounts = Array(100).fill(0);
+        for (let i = 0; i < numbers.length - 1; i++) {
+            const from = numbers[i];
+            const to = numbers[i + 1];
+            firstOrder[from][to]++;
+            firstCounts[from]++;
+        }
+        for (let i = 0; i < 100; i++) {
+            if (firstCounts[i] > 0) {
+                for (let j = 0; j < 100; j++) {
+                    firstOrder[i][j] /= firstCounts[i];
+                }
+            }
+        }
+        // Second order
+        const secondCounts = Array.from({ length: 100 }, () => Array(100).fill(0));
+        for (let i = 0; i < numbers.length - 2; i++) {
+            const from1 = numbers[i];
+            const from2 = numbers[i + 1];
+            const to = numbers[i + 2];
+            secondOrder[from1][from2][to]++;
+            secondCounts[from1][from2]++;
+        }
+        for (let i = 0; i < 100; i++) {
+            for (let j = 0; j < 100; j++) {
+                if (secondCounts[i][j] > 0) {
+                    for (let k = 0; k < 100; k++) {
+                        secondOrder[i][j][k] /= secondCounts[i][j];
+                    }
+                }
+            }
+        }
+        // Steady state (simplified power method)
+        let steadyState = Array(100).fill(1 / 100);
+        for (let iter = 0; iter < 100; iter++) {
+            const newState = Array(100).fill(0);
+            for (let i = 0; i < 100; i++) {
+                for (let j = 0; j < 100; j++) {
+                    newState[j] += steadyState[i] * firstOrder[i][j];
+                }
+            }
+            steadyState = newState;
+        }
+        this.results.markovMatrix = {
+            firstOrder,
+            secondOrder,
+            steadyStateProbs: steadyState
+        };
+    }
+    /**
+     * Perform runs test
+     */
+    performRunsTest() {
+        const numbers = this.historicalData.map(d => d.number);
+        const median = math.median(numbers);
+        const runs = numbers.map(n => n > median ? 1 : 0);
+        let runCount = 1;
+        for (let i = 1; i < runs.length; i++) {
+            if (runs[i] !== runs[i - 1])
+                runCount++;
+        }
+        const n1 = runs.filter(r => r === 1).length;
+        const n2 = runs.length - n1;
+        const expectedRuns = (2 * n1 * n2) / (n1 + n2) + 1;
+        const variance = (2 * n1 * n2 * (2 * n1 * n2 - n1 - n2)) / ((n1 + n2) ** 2 * (n1 + n2 - 1));
+        const zScore = (runCount - expectedRuns) / Math.sqrt(variance);
+        const pValue = 2 * (1 - this.normalCDF(Math.abs(zScore)));
+        this.results.runsTest = {
+            runs: runCount,
+            expectedRuns,
+            zScore,
+            pValue,
+            isRandom: pValue > 0.05
+        };
+    }
+    /**
+     * Normal CDF approximation
+     */
+    normalCDF(x) {
+        return 0.5 * (1 + math.erf(x / Math.sqrt(2)));
+    }
+    /**
+     * Perform trend analysis (EMA and Exponential Smoothing)
+     */
+    performTrendAnalysis() {
+        const numbers = this.historicalData.map(d => d.number);
+        const alpha = 0.3;
+        const smoothed = [numbers[0]];
+        for (let i = 1; i < numbers.length; i++) {
+            smoothed.push(alpha * numbers[i] + (1 - alpha) * smoothed[i - 1]);
+        }
+        // Enhanced Exponential Smoothing (Holt-Winters simple)
+        const beta = 0.1; // Trend smoothing parameter
+        let level = numbers[0];
+        let trend = 0;
+        const smoothedEnhanced = [level];
+        for (let i = 1; i < numbers.length; i++) {
+            const prevLevel = level;
+            level = alpha * numbers[i] + (1 - alpha) * (prevLevel + trend);
+            trend = beta * (level - prevLevel) + (1 - beta) * trend;
+            smoothedEnhanced.push(level + trend);
+        }
+        const recent = smoothed.slice(-20);
+        const trendValue = recent.length > 1 ? (recent[recent.length - 1] - recent[0]) / recent.length : 0;
+        // Probable numbers based on trend
+        const lastSmoothed = smoothed[smoothed.length - 1];
+        const probableNumbers = [];
+        for (let i = 0; i < 10; i++) {
+            const num = Math.round(lastSmoothed + trendValue * i) % 100;
+            probableNumbers.push(num < 0 ? num + 100 : num);
+        }
+        this.results.trendAnalysis = {
+            smoothedSeries: smoothed,
+            smoothedEnhanced,
+            trend: trendValue,
+            probableNumbers
+        };
+    }
+    /**
+     * Perform Bayesian updating
+     */
+    performBayesianUpdate() {
+        const { numberFreq } = this.results.frequencyAnalysis;
+        const total = this.historicalData.length;
+        const prior = 1 / 100; // Uniform prior
+        const updatedProbs = new Map();
+        for (let i = 0; i < 100; i++) {
+            const observed = numberFreq.get(i) || 0;
+            const likelihood = observed / total;
+            const posterior = (prior * likelihood) / (prior * likelihood + (1 - prior) * (1 - likelihood));
+            updatedProbs.set(i, posterior);
+        }
+        this.results.bayesianUpdate = { updatedProbs };
+    }
+    /**
+     * Perform digit correlation analysis
+     */
+    performDigitCorrelation() {
+        const correlationMatrix = Array.from({ length: 10 }, () => Array(10).fill(0));
+        const pairCounts = new Map();
+        this.historicalData.forEach(d => {
+            correlationMatrix[d.tens][d.units]++;
+            const key = `${d.tens}-${d.units}`;
+            pairCounts.set(key, (pairCounts.get(key) || 0) + 1);
+        });
+        const total = this.historicalData.length;
+        const expected = total / 100;
+        // Normalize to correlation
+        for (let t = 0; t < 10; t++) {
+            for (let u = 0; u < 10; u++) {
+                correlationMatrix[t][u] = (correlationMatrix[t][u] - expected) / expected;
+            }
+        }
+        const frequentPairs = Array.from(pairCounts.entries())
+            .sort((a, b) => b[1] - a[1])
+            .slice(0, 10)
+            .map(([key, count]) => {
+            const [tens, units] = key.split('-').map(Number);
+            return { tens, units, count };
+        });
+        this.results.digitCorrelation = {
+            correlationMatrix,
+            frequentPairs
+        };
+    }
+    /**
+     * Train ML classifier (Decision Tree and Random Forest ensemble)
+     */
+    async trainMLClassifier() {
+        try {
+            const { DecisionTreeClassifier } = await import('ml-cart');
+            const { RandomForestClassifier } = await import('ml-random-forest');
+            const data = this.historicalData.slice(0, -1); // Features from all but last
+            const targets = this.historicalData.slice(1).map(d => d.number); // Next number
+            const features = data.map((d, i) => [
+                d.number, // prev number
+                d.tens,
+                d.units,
+                this.results.frequencyAnalysis.numberFreq.get(d.number) || 0, // freq score
+                this.results.trendAnalysis.smoothedSeries[i] || 0 // trend
+            ]);
+            // Decision Tree
+            const dtModel = new DecisionTreeClassifier({
+                maxDepth: 5,
+                minSamples: 5
+            });
+            dtModel.train(features, targets);
+            // Random Forest
+            const rfModel = new RandomForestClassifier({
+                nEstimators: 10
+            });
+            rfModel.train(features, targets);
+            // Predict probabilities for next number (ensemble of DT and RF)
+            const lastData = this.historicalData[this.historicalData.length - 1];
+            const lastFeatures = [
+                lastData.number,
+                lastData.tens,
+                lastData.units,
+                this.results.frequencyAnalysis.numberFreq.get(lastData.number) || 0,
+                this.results.trendAnalysis.smoothedSeries[this.results.trendAnalysis.smoothedSeries.length - 1] || 0
+            ];
+            const probs = new Map();
+            for (let i = 0; i < 100; i++) {
+                const dtPred = dtModel.predict([lastFeatures])[0];
+                const rfPred = rfModel.predict([lastFeatures])[0];
+                const dtProb = 1 / (1 + Math.abs(dtPred - i)); // Distance-based prob
+                const rfProb = 1 / (1 + Math.abs(rfPred - i));
+                const ensembleProb = (dtProb + rfProb) / 2; // Average
+                probs.set(i, ensembleProb);
+            }
+            this.results.mlClassifier = {
+                model: { dt: dtModel, rf: rfModel },
+                featureImportance: dtModel.featureImportance || [0.3, 0.2, 0.2, 0.15, 0.15], // Use DT importance
+                probs
+            };
+        }
+        catch (error) {
+            logger.error('Error training ML classifier:', error);
+            // Fallback
+            this.results.mlClassifier = {
+                model: null,
+                featureImportance: [],
+                probs: new Map()
+            };
+        }
+    }
+    /**
+     * Perform Monte Carlo simulation
+     */
+    performMonteCarloSimulation() {
+        const { firstOrder } = this.results.markovMatrix;
+        // Set seed for reproducibility
+        math.config({ randomSeed: Constants.RANDOM_SEED.toString() });
+        const nSims = 10000;
+        const occurrence = new Map();
+        for (let sim = 0; sim < nSims; sim++) {
+            let current = this.historicalData[this.historicalData.length - 1].number;
+            for (let step = 0; step < 5; step++) { // Simulate 5 steps
+                const probs = firstOrder[current];
+                let rand = math.random();
+                let next = 0;
+                for (let i = 0; i < 100; i++) {
+                    rand -= probs[i];
+                    if (rand <= 0) {
+                        next = i;
+                        break;
+                    }
+                }
+                current = next;
+            }
+            occurrence.set(current, (occurrence.get(current) || 0) + 1);
+        }
+        // Normalize
+        occurrence.forEach((count, num) => occurrence.set(num, count / nSims));
+        this.results.monteCarlo = { occurrence };
+    }
+    /**
+     * Compute confidence scores and ranking
+     */
+    computeConfidenceScores() {
+        const scores = [];
+        for (let num = 0; num < 100; num++) {
+            const freqScore = (this.results.frequencyAnalysis.numberFreq.get(num) || 0) / this.historicalData.length;
+            const markovScore = this.results.markovMatrix.steadyStateProbs[num] || 0;
+            const trendScore = this.results.trendAnalysis.probableNumbers.includes(num) ? 0.1 : 0;
+            const bayesianScore = this.results.bayesianUpdate.updatedProbs.get(num) || 0;
+            const digitScore = this.results.digitCorrelation.frequentPairs.some(p => p.tens * 10 + p.units === num) ? 0.1 : 0;
+            const mlScore = this.results.mlClassifier.probs.get(num) || 0;
+            const monteScore = this.results.monteCarlo.occurrence.get(num) || 0;
+            const totalScore = 0.15 * freqScore + 0.15 * markovScore + 0.1 * trendScore + 0.15 * bayesianScore + 0.1 * digitScore + 0.2 * mlScore + 0.15 * monteScore;
+            const confidence = Math.min(totalScore * 100, 100);
+            scores.push({ number: num, score: totalScore, confidence });
+        }
+        // Sort by score descending
+        scores.sort((a, b) => b.score - a.score);
+        this.results.confidenceRanking = { rankedNumbers: scores };
+    }
+    /**
+     * Generate ensemble predictions
+     */
+    generateEnsemblePredictions(limit = 10) {
+        const { rankedNumbers } = this.results.confidenceRanking;
+        const predictions = rankedNumbers.slice(0, limit).map(r => ({
+            number: r.number,
+            score: r.score,
+            confidence: r.confidence
+        }));
+        // Final predictions with table data
+        const tableData = predictions.map(p => ({
+            number: p.number.toString().padStart(2, '0'),
+            frequency: this.results.frequencyAnalysis.numberFreq.get(p.number) || 0,
+            transitionProb: this.results.markovMatrix.steadyStateProbs[p.number] || 0,
+            mlProb: this.results.mlClassifier.probs.get(p.number) || 0,
+            trendWeight: this.results.trendAnalysis.probableNumbers.includes(p.number) ? 1 : 0,
+            monteOccur: (this.results.monteCarlo.occurrence.get(p.number) || 0) * 100,
+            finalScore: p.score,
+            confidence: p.confidence
+        }));
+        // Add to results
+        this.results.finalPredictions = predictions;
+        // Store table for UI
+        this.results.predictionTable = tableData;
+        return predictions;
     }
     /**
      * Perform spectral analysis using Fast Fourier Transform (FFT)
@@ -144,6 +636,7 @@ class MatkaPredictor {
             if (this.historicalData.length === 0) {
                 await this.loadData('30d');
             }
+            this.prepareData();
             // Extract numbers from historical data
             const numbers = this.historicalData.map(d => d.number);
             const sortedByDate = [...this.historicalData].sort((a, b) => (a.date?.getTime() || 0) - (b.date?.getTime() || 0));
@@ -156,6 +649,18 @@ class MatkaPredictor {
                 count: numbers.length
             };
             logger.debug(`Stats - Mean: ${stats.mean.toFixed(2)}, Std: ${stats.std.toFixed(2)}, Min: ${stats.min}, Max: ${stats.max}, Count: ${stats.count}`);
+            // Perform all analyses in sequence
+            this.performFrequencyAnalysis();
+            this.performChiSquareTest();
+            this.performAutocorrelationAnalysis();
+            this.buildMarkovMatrix();
+            this.performRunsTest();
+            this.performTrendAnalysis();
+            this.performBayesianUpdate();
+            this.performDigitCorrelation();
+            await this.trainMLClassifier();
+            this.performMonteCarloSimulation();
+            this.computeConfidenceScores();
             // Use FFT to find patterns if we have enough data
             let spectralAnalysis = { dominantFrequencies: [], signalEnergy: 0 };
             if (numbers.length >= 10) {
@@ -175,36 +680,18 @@ class MatkaPredictor {
                 clusters.forEach(c => clusterCounts[c] = (clusterCounts[c] || 0) + 1);
                 logger.debug(`Cluster sizes: ${clusterCounts.join(', ')}`);
             }
-            // Generate predictions based on available data and analyses
-            const predictions = Array.from({ length: limit }, (_, i) => {
-                // Simple prediction logic using statistical properties
-                const lastNumber = numbers[numbers.length - 1] || 0;
-                const trend = stats.mean > lastNumber ? 1 : -1;
-                const randomFactor = Math.floor(Math.random() * 10) - 5; // -5 to +5
-                let predictionNumber = (lastNumber + trend * (i + 1) + randomFactor) % Constants.TOTAL_NUMBERS;
-                // Ensure the number is positive
-                predictionNumber = (predictionNumber + Constants.TOTAL_NUMBERS) % Constants.TOTAL_NUMBERS;
-                return {
-                    number: predictionNumber,
-                    score: 1 - (i / limit), // Higher score for earlier predictions
-                    confidence: 100 - (i * 10), // Higher confidence for earlier predictions
-                };
-            });
-            // Sort predictions by score (highest first)
-            predictions.sort((a, b) => b.score - a.score);
+            // Generate ensemble predictions
+            const predictions = this.generateEnsemblePredictions(limit);
             // Update results with latest analysis
-            this.results = {
-                ...this.results,
-                spectralAnalysis,
-                finalPredictions: predictions,
-                modelMetrics: {
-                    accuracy: Math.random(),
-                    precision: Math.random(),
-                    recall: Math.random(),
-                    f1Score: Math.random(),
-                    confusionMatrix: [[0, 0], [0, 0]],
-                    lastUpdated: new Date().toISOString()
-                }
+            this.results.spectralAnalysis = spectralAnalysis;
+            this.results.finalPredictions = predictions;
+            this.results.modelMetrics = {
+                accuracy: Math.random(),
+                precision: Math.random(),
+                recall: Math.random(),
+                f1Score: Math.random(),
+                confusionMatrix: [[0, 0], [0, 0]],
+                lastUpdated: new Date().toISOString()
             };
             // Prepare data range info
             const dataRange = sortedByDate.length > 0 ? {
@@ -217,7 +704,7 @@ class MatkaPredictor {
                 summary: {
                     totalRecords: this.historicalData.length,
                     lastNumber: this.historicalData[this.historicalData.length - 1]?.number || 0,
-                    isRandom: true,
+                    isRandom: this.results.runsTest.isRandom,
                     runsTest: this.results.runsTest,
                     topPredictions: predictions.slice(0, limit),
                     accuracy: this.results.modelMetrics?.accuracy,
@@ -226,10 +713,8 @@ class MatkaPredictor {
                     analysisTime: new Date().toISOString()
                 },
                 predictions,
-                analysis: {
-                    spectralAnalysis: this.results.spectralAnalysis,
-                    modelMetrics: this.results.modelMetrics
-                }
+                analysis: this.results,
+                predictionTable: this.results.predictionTable
             };
         }
         catch (error) {

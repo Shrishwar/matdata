@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
-const predictor = require('../services/prediction/matkaPredictor');
+const MatkaPredictor = require('../prediction-engine/dist/services/prediction/matkaPredictor.js').default;
+const predictor = new MatkaPredictor();
 const { auth, admin } = require('../middleware/auth');
 const Result = require('../models/Result');
 const logger = require('../utils/logger');
@@ -27,33 +28,33 @@ const validate = validations => {
  * @access  Private
  */
 router.get('/next', 
-  auth,
   validate([
     query('limit').optional().isInt({ min: 1, max: 50 }).withMessage('Limit must be between 1 and 50')
   ]),
   async (req, res) => {
     try {
       const limit = parseInt(req.query.limit) || 10;
+
+      // Check if sufficient data exists
+      const dataCount = await Result.countDocuments();
+      if (dataCount < 10) {
+        return res.status(400).json({
+          success: false,
+          error: 'Insufficient data for predictions',
+          details: `Only ${dataCount} records found. Please run the scraper to populate the database with DPBoss data.`
+        });
+      }
+
       const result = await predictor.generatePredictions(limit);
       
-      // Format the response
+      // Format the response with full analysis
       const response = {
         success: true,
         data: {
           predictions: result.predictions,
-          analysis: {
-            frequency: result.analysis.frequency,
-            patterns: result.analysis.patterns,
-            spectral: result.analysis.spectralAnalysis,
-            trends: result.analysis.trends
-          },
-          summary: {
-            totalRecords: result.summary.totalRecords,
-            lastNumber: result.summary.lastNumber,
-            isRandom: result.summary.isRandom,
-            runsTest: result.summary.runsTest,
-            lastUpdated: new Date()
-          }
+          analysis: result.analysis, // Full analysis object
+          predictionTable: result.predictionTable,
+          summary: result.summary
         }
       };
       

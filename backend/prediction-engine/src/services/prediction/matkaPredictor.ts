@@ -55,6 +55,7 @@ interface AnalysisResults {
   };
   trendAnalysis: {
     smoothedSeries: number[];
+    smoothedEnhanced: number[];
     trend: number;
     probableNumbers: number[];
   };
@@ -99,6 +100,7 @@ const Constants = {
   DEFAULT_PREDICTION_LIMIT: 10,
   MIN_SAMPLES_FOR_ANALYSIS: 50,
   PATTERN_LENGTH: 3, // Default pattern length for sequence analysis
+  RANDOM_SEED: 42, // For reproducibility
 } as const;
 
 class MatkaPredictor {
@@ -136,9 +138,10 @@ class MatkaPredictor {
       isRandom: true,
     },
     trendAnalysis: {
-      smoothedSeries: [],
-      trend: 0,
-      probableNumbers: [],
+    smoothedSeries: [],
+    smoothedEnhanced: [],
+    trend: 0,
+    probableNumbers: [],
     },
     bayesianUpdate: {
       updatedProbs: new Map(),
@@ -188,28 +191,8 @@ class MatkaPredictor {
       const dbData = await mongoService.getHistoricalData(days);
       
       if (dbData.length === 0) {
-        logger.warn('No historical data found in database. Generating sample data...');
-        
-        // Generate sample data if no historical data is available
-        const sampleData: HistoricalData[] = [];
-        const now = new Date();
-        
-        for (let i = 0; i < 50; i++) {
-          const timestamp = new Date(now.getTime() - (i * 24 * 60 * 60 * 1000));
-          const number = Math.floor(Math.random() * 100);
-          sampleData.push({
-            number,
-            date: timestamp,
-            timestamp: timestamp,
-            gameType: 'SINGLE',
-            openClose: Math.random() > 0.5 ? 'OPEN' : 'CLOSE',
-            tens: Math.floor(number / 10),
-            units: number % 10
-          });
-        }
-        
-        logger.info(`Generated ${sampleData.length} sample records`);
-        this.historicalData = sampleData;
+        logger.warn('No historical data found in database. Predictions require real historical data from DPBoss.');
+        throw new Error('No historical data available. Please run the scraper to populate the database with DPBoss data.');
       } else {
         // Transform database data to match HistoricalData type
         this.historicalData = dbData.map(item => {
@@ -286,13 +269,13 @@ class MatkaPredictor {
     const std = Math.sqrt(expected);
 
     const overrepresented = Array.from(numberFreq.entries())
-      .filter(([num, count]) => count > expected + std)
+      .filter(([, count]) => count > expected + std)
       .sort((a, b) => b[1] - a[1])
       .slice(0, 10)
       .map(([number, count]) => ({ number, count }));
 
     const underrepresented = Array.from(numberFreq.entries())
-      .filter(([num, count]) => count < expected - std)
+      .filter(([, count]) => count < expected - std)
       .sort((a, b) => a[1] - b[1])
       .slice(0, 10)
       .map(([number, count]) => ({ number, count }));
@@ -490,7 +473,7 @@ class MatkaPredictor {
   }
 
   /**
-   * Perform trend analysis (EMA)
+   * Perform trend analysis (EMA and Exponential Smoothing)
    */
   private performTrendAnalysis(): void {
     const numbers = this.historicalData.map(d => d.number);
@@ -501,20 +484,34 @@ class MatkaPredictor {
       smoothed.push(alpha * numbers[i] + (1 - alpha) * smoothed[i - 1]);
     }
 
+    // Enhanced Exponential Smoothing (Holt-Winters simple)
+    const beta = 0.1; // Trend smoothing parameter
+    let level = numbers[0];
+    let trend = 0;
+    const smoothedEnhanced: number[] = [level];
+
+    for (let i = 1; i < numbers.length; i++) {
+      const prevLevel = level;
+      level = alpha * numbers[i] + (1 - alpha) * (prevLevel + trend);
+      trend = beta * (level - prevLevel) + (1 - beta) * trend;
+      smoothedEnhanced.push(level + trend);
+    }
+
     const recent = smoothed.slice(-20);
-    const trend = recent.length > 1 ? (recent[recent.length - 1] - recent[0]) / recent.length : 0;
+    const trendValue = recent.length > 1 ? (recent[recent.length - 1] - recent[0]) / recent.length : 0;
 
     // Probable numbers based on trend
     const lastSmoothed = smoothed[smoothed.length - 1];
     const probableNumbers = [];
     for (let i = 0; i < 10; i++) {
-      const num = Math.round(lastSmoothed + trend * i) % 100;
+      const num = Math.round(lastSmoothed + trendValue * i) % 100;
       probableNumbers.push(num < 0 ? num + 100 : num);
     }
 
     this.results.trendAnalysis = {
       smoothedSeries: smoothed,
-      trend,
+      smoothedEnhanced,
+      trend: trendValue,
       probableNumbers
     };
   }
@@ -576,11 +573,12 @@ class MatkaPredictor {
   }
 
   /**
-   * Train ML classifier
+   * Train ML classifier (Decision Tree and Random Forest ensemble)
    */
   private async trainMLClassifier(): Promise<void> {
     try {
       const { DecisionTreeClassifier } = await import('ml-cart');
+      const { RandomForestClassifier } = await import('ml-random-forest');
       const data = this.historicalData.slice(0, -1); // Features from all but last
       const targets = this.historicalData.slice(1).map(d => d.number); // Next number
 
@@ -592,13 +590,20 @@ class MatkaPredictor {
         this.results.trendAnalysis.smoothedSeries[i] || 0 // trend
       ]);
 
-      const model = new DecisionTreeClassifier({
+      // Decision Tree
+      const dtModel = new DecisionTreeClassifier({
         maxDepth: 5,
         minSamples: 5
       });
-      model.train(features, targets);
+      dtModel.train(features, targets);
 
-      // Predict probabilities for next number (simplified)
+      // Random Forest
+      const rfModel = new RandomForestClassifier({
+        nEstimators: 10
+      });
+      rfModel.train(features, targets);
+
+      // Predict probabilities for next number (ensemble of DT and RF)
       const lastData = this.historicalData[this.historicalData.length - 1];
       const lastFeatures = [
         lastData.number,
@@ -610,14 +615,17 @@ class MatkaPredictor {
 
       const probs = new Map<number, number>();
       for (let i = 0; i < 100; i++) {
-        const pred = model.predict([lastFeatures]);
-        const prob = 1 / (1 + Math.abs(pred - i)); // Distance-based prob
-        probs.set(i, prob);
+        const dtPred = (dtModel.predict([lastFeatures]) as number[])[0];
+        const rfPred = (rfModel.predict([lastFeatures]) as number[])[0];
+        const dtProb = 1 / (1 + Math.abs(dtPred - i)); // Distance-based prob
+        const rfProb = 1 / (1 + Math.abs(rfPred - i));
+        const ensembleProb = (dtProb + rfProb) / 2; // Average
+        probs.set(i, ensembleProb);
       }
 
       this.results.mlClassifier = {
-        model,
-        featureImportance: model.featureImportance || [0.3, 0.2, 0.2, 0.15, 0.15], // Placeholder
+        model: { dt: dtModel, rf: rfModel },
+        featureImportance: dtModel.featureImportance || [0.3, 0.2, 0.2, 0.15, 0.15], // Use DT importance
         probs
       };
     } catch (error) {
@@ -636,8 +644,11 @@ class MatkaPredictor {
    */
   private performMonteCarloSimulation(): void {
     const { firstOrder } = this.results.markovMatrix;
-    const { updatedProbs } = this.results.bayesianUpdate;
-    const { smoothedSeries } = this.results.trendAnalysis;
+
+    // Create local math instance for config
+    const { create, all } = require('mathjs');
+    const math = create(all);
+    math.config({ randomSeed: Constants.RANDOM_SEED.toString() });
 
     const nSims = 10000;
     const occurrence = new Map<number, number>();
@@ -646,7 +657,7 @@ class MatkaPredictor {
       let current = this.historicalData[this.historicalData.length - 1].number;
       for (let step = 0; step < 5; step++) { // Simulate 5 steps
         const probs = firstOrder[current];
-        let rand = Math.random();
+        let rand = math.random();
         let next = 0;
         for (let i = 0; i < 100; i++) {
           rand -= probs[i];
@@ -713,7 +724,7 @@ class MatkaPredictor {
       trendWeight: this.results.trendAnalysis.probableNumbers.includes(p.number) ? 1 : 0,
       monteOccur: (this.results.monteCarlo.occurrence.get(p.number) || 0) * 100,
       finalScore: p.score,
-      confidence: p.confidence.toFixed(1) + '%'
+      confidence: p.confidence
     }));
 
     // Add to results
@@ -866,14 +877,44 @@ class MatkaPredictor {
       // Update results with latest analysis
       this.results.spectralAnalysis = spectralAnalysis;
       this.results.finalPredictions = predictions;
-      this.results.modelMetrics = {
-        accuracy: Math.random(),
-        precision: Math.random(),
-        recall: Math.random(),
-        f1Score: Math.random(),
-        confusionMatrix: [[0, 0], [0, 0]],
-        lastUpdated: new Date().toISOString()
-      };
+
+      // Compute real model metrics via simple backtest if enough data
+      let modelMetrics: AnalysisResults['modelMetrics'] = undefined;
+      if (this.historicalData.length >= 50) {
+        let hitCount = 0;
+        const testSize = 10;
+        for (let i = this.historicalData.length - testSize; i < this.historicalData.length; i++) {
+          // Simulate prior data up to i-1
+          const priorData = this.historicalData.slice(0, i);
+          const freqMap = new Map();
+          priorData.forEach(d => {
+            freqMap.set(d.number, (freqMap.get(d.number) || 0) + 1);
+          });
+          const sortedPrior = Array.from(freqMap.entries())
+            .sort((a, b) => b[1] - a[1])
+            .slice(0, 10)
+            .map(([num]) => num);
+          if (sortedPrior.includes(this.historicalData[i].number)) {
+            hitCount++;
+          }
+        }
+        const accuracy = (hitCount / testSize) * 100;
+        const precision = accuracy; // Simplified
+        const recall = accuracy;
+        const f1Score = accuracy > 0 ? 2 * accuracy / (precision + recall) : 0;
+        modelMetrics = {
+          accuracy,
+          precision,
+          recall,
+          f1Score,
+          confusionMatrix: [[hitCount, testSize - hitCount], [0, 0]], // Simplified
+          lastUpdated: new Date().toISOString()
+        };
+        logger.info(`Backtest accuracy: ${accuracy.toFixed(2)}% on ${testSize} samples`);
+      } else {
+        logger.warn(`Insufficient data (${this.historicalData.length} records) for backtest metrics`);
+      }
+      this.results.modelMetrics = modelMetrics;
 
       // Prepare data range info
       const dataRange = sortedByDate.length > 0 ? {

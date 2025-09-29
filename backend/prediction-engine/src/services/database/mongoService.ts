@@ -53,16 +53,27 @@ class MongoService {
       const startDate = new Date();
       startDate.setDate(startDate.getDate() - days);
 
+      logger.info(`Querying for dates >= ${startDate.toISOString()}`);
+
       const results = await this.collection
         .find({
-          date: { $gte: startDate },
-          number: { $exists: true, $ne: null }
+          // date: { $gte: startDate }, // Temporarily disabled for testing
+          middle: { $exists: true, $ne: null }
         })
         .sort({ date: 1 })
+        .limit(1000) // Limit to prevent too much data
         .toArray();
 
-      logger.info(`Retrieved ${results.length} historical records`);
-      return results;
+      logger.info(`Found ${results.length} results with middle exists`);
+
+      // Transform to include 'number' field as middle (two-digit matka number)
+      const transformed = results.map(item => ({
+        ...item,
+        number: item.middle || item.double || (parseInt(item.close3 || '0') % 100)
+      }));
+
+      logger.info(`Retrieved ${transformed.length} historical records`);
+      return transformed;
     } catch (error) {
       logger.error('Error fetching historical data:', error);
       throw error;

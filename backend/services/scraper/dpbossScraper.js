@@ -72,18 +72,28 @@ async function scrapeHistory() {
       const dateRangeStr = $(tds[0]).text().trim();
       console.log(`Row ${rowIndex} date range: ${dateRangeStr}`);
 
-      const toIndex = dateRangeStr.indexOf('to');
-      if (toIndex <= 0) {
-        console.warn(`Invalid date range in row ${rowIndex}: ${dateRangeStr}`);
+      // Validate date range format
+      const dateRangeRegex = /^\d{1,2}\/\d{1,2}\/\d{4}to\d{1,2}\/\d{1,2}\/\d{4}$/;
+      if (!dateRangeRegex.test(dateRangeStr)) {
+        console.warn(`Skipping invalid date range in row ${rowIndex}: ${dateRangeStr}`);
         continue;
       }
 
+      const toIndex = dateRangeStr.indexOf('to');
       const startDateStr = dateRangeStr.substring(0, toIndex).trim();
+      console.log(`Parsing start date: ${startDateStr}`);
       let startDate;
       if (startDateStr.includes('/')) {
         const parts = startDateStr.split('/');
         if (parts.length === 3) {
-          startDate = new Date(`${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`);
+          const [p1, p2, year] = parts;
+          if (parseInt(p1) > 12) {
+            // Assume DD/MM/YYYY
+            startDate = new Date(`${year}-${p2.padStart(2, '0')}-${p1.padStart(2, '0')}`);
+          } else {
+            // Assume MM/DD/YYYY
+            startDate = new Date(`${year}-${p1.padStart(2, '0')}-${p2.padStart(2, '0')}`);
+          }
         } else {
           startDate = new Date(startDateStr);
         }
@@ -184,16 +194,18 @@ async function getLiveExtracted() {
       }
 
       const dateRangeStr = $(tds[0]).text().trim();
+      console.log(`Live extraction date range: ${dateRangeStr}`);
       const toIndex = dateRangeStr.indexOf('to');
       if (toIndex <= 0) {
         throw new Error(`Invalid date range: ${dateRangeStr}`);
       }
       const startDateStr = dateRangeStr.substring(0, toIndex).trim();
+      console.log(`Parsing start date: ${startDateStr}`);
       let startDate = new Date(startDateStr);
       if (isNaN(startDate.getTime()) && startDateStr.includes('/')) {
         const parts = startDateStr.split('/');
         if (parts.length === 3) {
-          startDate = new Date(`${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`);
+          startDate = new Date(`${parts[2]}-${parts[0].padStart(2, '0')}-${parts[1].padStart(2, '0')}`);
         }
       }
       if (isNaN(startDate.getTime())) {
@@ -270,16 +282,18 @@ async function scrapeLatest() {
       }
 
       const dateRangeStr = $(tds[0]).text().trim();
+      console.log(`Scrape latest date range: ${dateRangeStr}`);
       const toIndex = dateRangeStr.indexOf('to');
       if (toIndex <= 0) {
         throw new Error(`Invalid date range: ${dateRangeStr}`);
       }
       const startDateStr = dateRangeStr.substring(0, toIndex).trim();
+      console.log(`Parsing start date: ${startDateStr}`);
       let startDate = new Date(startDateStr);
       if (isNaN(startDate.getTime()) && startDateStr.includes('/')) {
         const parts = startDateStr.split('/');
         if (parts.length === 3) {
-          startDate = new Date(`${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`);
+          startDate = new Date(`${parts[2]}-${parts[0].padStart(2, '0')}-${parts[1].padStart(2, '0')}`);
         }
       }
       if (isNaN(startDate.getTime())) {

@@ -2,12 +2,15 @@ import { useEffect, useState, useMemo } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { toast } from 'react-hot-toast';
 import { predictionApi } from '../services/api';
-import { Bar } from 'react-chartjs-2';
+import { Bar, Line, Pie } from 'react-chartjs-2';
 import {
   Chart as ChartJS,
   CategoryScale,
   LinearScale,
   BarElement,
+  LineElement,
+  PointElement,
+  ArcElement,
   Title,
   Tooltip,
   Legend,
@@ -31,10 +34,13 @@ interface Prediction {
 const PredictionsPage = () => {
   const [predictions, setPredictions] = useState<Prediction[]>([]);
   const [analysis, setAnalysis] = useState<any>(null);
+  const [predictionTable, setPredictionTable] = useState<any[]>([]);
+  const [liveData, setLiveData] = useState<any>(null);
+  const [liveLoading, setLiveLoading] = useState(true);
   const [isLoading, setIsLoading] = useState(true);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const [activeTab, setActiveTab] = useState<'predictions' | 'analysis'>('predictions');
-  const { token, user } = useAuth();
+  const { user } = useAuth();
 
   const fetchPredictions = async () => {
     try {
@@ -44,6 +50,7 @@ const PredictionsPage = () => {
       if (response.success) {
         setPredictions(response.data.predictions);
         setAnalysis(response.data.analysis);
+        setPredictionTable(response.data.predictionTable || []);
         setLastUpdated(new Date());
       } else {
         toast.error('Failed to fetch predictions');
@@ -56,11 +63,43 @@ const PredictionsPage = () => {
     }
   };
 
+  const fetchLiveData = async () => {
+    try {
+      setLiveLoading(true);
+      const response = await fetch('/api/results/fetch-latest');
+      const data = await response.json();
+      
+      if (data.ok) {
+        setLiveData(data.latest);
+      } else {
+        toast.error('Failed to fetch live DPBoss data');
+      }
+    } catch (error) {
+      console.error('Error fetching live data:', error);
+      toast.error('Error fetching live data');
+    } finally {
+      setLiveLoading(false);
+    }
+  };
+
   useEffect(() => {
-    if (token) {
+    fetchLiveData();
+    if (user) {
       fetchPredictions();
     }
-  }, [token]);
+  }, [user]);
+
+  // Auto-refresh every 5 minutes if data is loaded
+  useEffect(() => {
+    if (!isLoading && predictions.length > 0) {
+      const interval = setInterval(() => {
+        fetchPredictions();
+        fetchLiveData();
+      }, 5 * 60 * 1000); // 5 minutes
+
+      return () => clearInterval(interval);
+    }
+  }, [isLoading, predictions.length]);
 
   const getConfidenceColor = (confidence: number) => {
     if (confidence >= 80) return 'bg-green-100 text-green-800';
@@ -92,29 +131,118 @@ const PredictionsPage = () => {
   }, [analysis]);
 
   const trendChartData = useMemo(() => {
-    if (!analysis?.frequency) return null;
-    
-    const trendingNumbers = [...analysis.frequency]
-      .sort((a, b) => Math.abs(b.trend) - Math.abs(a.trend))
-      .slice(0, 10);
-    
+    if (!analysis?.trendAnalysis?.smoothedSeries) return null;
+
+    const smoothed = analysis.trendAnalysis.smoothedSeries.slice(-50); // Last 50 points
+    const labels = smoothed.map((_: number, i: number) => i.toString());
+
     return {
-      labels: trendingNumbers.map(item => item.number.toString().padStart(2, '0')),
+      labels,
       datasets: [
         {
-          label: 'Trend',
-          data: trendingNumbers.map(item => (item.trend * 100).toFixed(2)),
-          backgroundColor: trendingNumbers.map(item => 
-            item.trend > 0 ? 'rgba(34, 197, 94, 0.7)' : 'rgba(239, 68, 68, 0.7)'
-          ),
-          borderColor: trendingNumbers.map(item => 
-            item.trend > 0 ? 'rgba(34, 197, 94, 1)' : 'rgba(239, 68, 68, 1)'
-          ),
-          borderWidth: 1,
+          label: 'Smoothed Trend',
+          data: smoothed,
+          borderColor: 'rgba(59, 130, 246, 1)',
+          backgroundColor: 'rgba(59, 130, 246, 0.1)',
+          fill: true,
         },
       ],
     };
   }, [analysis]);
+
+  const autocorrelationChartData = useMemo(() => {
+    if (!analysis?.autocorrelation?.graphData) return null;
+
+    return {
+      labels: analysis.autocorrelation.graphData.x.map((x: number) => x.toString()),
+      datasets: [
+        {
+          label: 'Autocorrelation',
+          data: analysis.autocorrelation.graphData.y,
+          borderColor: 'rgba(16, 185, 129, 1)',
+          backgroundColor: 'rgba(16, 185, 129, 0.1)',
+          fill: false,
+        },
+      ],
+    };
+  }, [analysis]);
+
+  const markovTableData = useMemo(() => {
+    if (!analysis?.markovMatrix?.steadyStateProbs) return [];
+
+    return analysis.markovMatrix.steadyStateProbs
+      .map((prob: number, number: number) => ({ number, prob }))
+      .sort((a: any, b: any) => b.prob - a.prob)
+      .slice(0, 10);
+  }, [analysis]);
+
+  const ensembleTableData = predictionTable.slice(0, 10);
+
+  const formatNumber = (num: number) => {
+    return num.toString().padStart(2, '0');
+  };
+
+  return (
+    <div className="container mx-auto px-4 py-8">
+      <div className="bg-white rounded-lg shadow-md p-6">
+        <div className="flex justify-between items-center mb-6">
+          <h1 className="text-2xl font-bold text-gray-800">Next Number Predictions</h1>
+          <div className="flex space-x-2">
+            <button
+              onClick={() => setActiveTab('predictions')}
+              className={`px-4 py-2 rounded-md ${
+                activeTab === 'predictions'
+                  ? 'bg-blue-600 text-white'
+                  : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+  }, [analysis]);
+
+  const trendChartData = useMemo(() => {
+    if (!analysis?.trendAnalysis?.smoothedSeries) return null;
+
+    const smoothed = analysis.trendAnalysis.smoothedSeries.slice(-50); // Last 50 points
+    const labels = smoothed.map((_: number, i: number) => i.toString());
+
+    return {
+      labels,
+      datasets: [
+        {
+          label: 'Smoothed Trend',
+          data: smoothed,
+          borderColor: 'rgba(59, 130, 246, 1)',
+          backgroundColor: 'rgba(59, 130, 246, 0.1)',
+          fill: true,
+        },
+      ],
+    };
+  }, [analysis]);
+
+  const autocorrelationChartData = useMemo(() => {
+    if (!analysis?.autocorrelation?.graphData) return null;
+
+    return {
+      labels: analysis.autocorrelation.graphData.x.map((x: number) => x.toString()),
+      datasets: [
+        {
+          label: 'Autocorrelation',
+          data: analysis.autocorrelation.graphData.y,
+          borderColor: 'rgba(16, 185, 129, 1)',
+          backgroundColor: 'rgba(16, 185, 129, 0.1)',
+          fill: false,
+        },
+      ],
+    };
+  }, [analysis]);
+
+  const markovTableData = useMemo(() => {
+    if (!analysis?.markovMatrix?.steadyStateProbs) return [];
+
+    return analysis.markovMatrix.steadyStateProbs
+      .map((prob: number, number: number) => ({ number, prob }))
+      .sort((a: any, b: any) => b.prob - a.prob)
+      .slice(0, 10);
+  }, [analysis]);
+
+  const ensembleTableData = predictionTable.slice(0, 10);
 
   const formatNumber = (num: number) => {
     return num.toString().padStart(2, '0');
@@ -289,11 +417,12 @@ const PredictionsPage = () => {
                   Most frequently occurring number sequences
                 </p>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {/* @ts-ignore */}
                   {analysis.patterns.slice(0, 6).map(([pattern, count], index) => (
                     <div key={index} className="bg-gray-50 p-3 rounded-md">
                       <div className="flex items-center justify-between">
                         <div className="flex space-x-2">
-                          {pattern.split(',').map((num, i) => (
+                          {pattern.split(',').map((num: string, i: number) => (
                             <span key={i} className="px-2 py-1 bg-white rounded-md shadow-sm text-sm font-medium">
                               {num.padStart(2, '0')}
                             </span>
@@ -321,11 +450,241 @@ const PredictionsPage = () => {
                     </span>
                   </div>
                   <div className="w-full bg-gray-200 rounded-full h-2.5">
-                    <div 
-                      className="bg-blue-600 h-2.5 rounded-full" 
+                    <div
+                      className="bg-blue-600 h-2.5 rounded-full"
                       style={{ width: `${Math.min(100, analysis.spectral.signalEnergy / 1000)}%` }}
                     ></div>
                   </div>
+                </div>
+              </div>
+            )}
+
+            {analysis?.chiSquareTest && (
+              <div className="bg-white p-4 rounded-lg shadow mt-6">
+                <h3 className="text-lg font-medium text-gray-900 mb-4">Chi-Square Test</h3>
+                <p className="text-sm text-gray-500 mb-4">
+                  Tests if numbers are randomly distributed
+                </p>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <span className="text-sm text-gray-600">Chi-Square Value:</span>
+                    <span className="ml-2 font-medium">{analysis.chiSquareTest.chiSquare.toFixed(2)}</span>
+                  </div>
+                  <div>
+                    <span className="text-sm text-gray-600">P-Value:</span>
+                    <span className="ml-2 font-medium">{analysis.chiSquareTest.pValue.toFixed(4)}</span>
+                  </div>
+                  <div>
+                    <span className="text-sm text-gray-600">Is Random:</span>
+                    <span className={`ml-2 font-medium ${analysis.chiSquareTest.isRandom ? 'text-green-600' : 'text-red-600'}`}>
+                      {analysis.chiSquareTest.isRandom ? 'Yes' : 'No'}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-sm text-gray-600">Degrees of Freedom:</span>
+                    <span className="ml-2 font-medium">{analysis.chiSquareTest.degreesOfFreedom}</span>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {autocorrelationChartData && (
+              <div className="bg-white p-4 rounded-lg shadow mt-6">
+                <h3 className="text-lg font-medium text-gray-900 mb-4">Autocorrelation Analysis</h3>
+                <p className="text-sm text-gray-500 mb-4">
+                  Correlation between numbers at different lags
+                </p>
+                <Line
+                  data={autocorrelationChartData}
+                  options={{
+                    responsive: true,
+                    plugins: {
+                      legend: { position: 'top' as const },
+                      title: { display: true, text: 'Autocorrelation Function' },
+                    },
+                    scales: {
+                      y: { beginAtZero: true, title: { display: true, text: 'Correlation' } },
+                      x: { title: { display: true, text: 'Lag' } },
+                    },
+                  }}
+                />
+              </div>
+            )}
+
+            {analysis?.runsTest && (
+              <div className="bg-white p-4 rounded-lg shadow mt-6">
+                <h3 className="text-lg font-medium text-gray-900 mb-4">Runs Test</h3>
+                <p className="text-sm text-gray-500 mb-4">
+                  Tests if the sequence is random by counting runs above/below median
+                </p>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <span className="text-sm text-gray-600">Runs:</span>
+                    <span className="ml-2 font-medium">{analysis.runsTest.runs}</span>
+                  </div>
+                  <div>
+                    <span className="text-sm text-gray-600">Expected Runs:</span>
+                    <span className="ml-2 font-medium">{analysis.runsTest.expectedRuns.toFixed(2)}</span>
+                  </div>
+                  <div>
+                    <span className="text-sm text-gray-600">Z-Score:</span>
+                    <span className="ml-2 font-medium">{analysis.runsTest.zScore.toFixed(2)}</span>
+                  </div>
+                  <div>
+                    <span className="text-sm text-gray-600">P-Value:</span>
+                    <span className="ml-2 font-medium">{analysis.runsTest.pValue.toFixed(4)}</span>
+                  </div>
+                  <div>
+                    <span className="text-sm text-gray-600">Is Random:</span>
+                    <span className={`ml-2 font-medium ${analysis.runsTest.isRandom ? 'text-green-600' : 'text-red-600'}`}>
+                      {analysis.runsTest.isRandom ? 'Yes' : 'No'}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {markovTableData.length > 0 && (
+              <div className="bg-white p-4 rounded-lg shadow mt-6">
+                <h3 className="text-lg font-medium text-gray-900 mb-4">Markov Chain Steady State</h3>
+                <p className="text-sm text-gray-500 mb-4">
+                  Long-term probability distribution of numbers
+                </p>
+                <div className="overflow-x-auto">
+                  <table className="min-w-full table-auto">
+                    <thead>
+                      <tr className="bg-gray-50">
+                        <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Number</th>
+                        <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Probability</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {markovTableData.map((item) => (
+                        <tr key={item.number} className="border-t">
+                          <td className="px-4 py-2 text-sm">{formatNumber(item.number)}</td>
+                          <td className="px-4 py-2 text-sm">{(item.prob * 100).toFixed(2)}%</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+
+            {analysis?.digitCorrelation?.frequentPairs && (
+              <div className="bg-white p-4 rounded-lg shadow mt-6">
+                <h3 className="text-lg font-medium text-gray-900 mb-4">Digit Correlation</h3>
+                <p className="text-sm text-gray-500 mb-4">
+                  Most frequent digit pairs (tens and units)
+                </p>
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                  {analysis.digitCorrelation.frequentPairs.slice(0, 8).map((pair, index) => (
+                    <div key={index} className="bg-gray-50 p-3 rounded-md">
+                      <div className="text-center">
+                        <div className="text-lg font-medium">{pair.tens}{pair.units}</div>
+                        <div className="text-sm text-gray-500">{pair.count} times</div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {analysis?.mlClassifier?.probs && (
+              <div className="bg-white p-4 rounded-lg shadow mt-6">
+                <h3 className="text-lg font-medium text-gray-900 mb-4">ML Probabilities</h3>
+                <p className="text-sm text-gray-500 mb-4">
+                  Machine learning predictions (Decision Tree + Random Forest ensemble)
+                </p>
+                <div className="overflow-x-auto">
+                  <table className="min-w-full table-auto">
+                    <thead>
+                      <tr className="bg-gray-50">
+                        <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Number</th>
+                        <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Probability</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {Array.from(analysis.mlClassifier.probs.entries())
+                        .sort((a, b) => b[1] - a[1])
+                        .slice(0, 10)
+                        .map(([number, prob]) => (
+                        <tr key={number} className="border-t">
+                          <td className="px-4 py-2 text-sm">{formatNumber(number)}</td>
+                          <td className="px-4 py-2 text-sm">{(prob * 100).toFixed(2)}%</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+
+            {analysis?.monteCarlo?.occurrence && (
+              <div className="bg-white p-4 rounded-lg shadow mt-6">
+                <h3 className="text-lg font-medium text-gray-900 mb-4">Monte Carlo Simulation</h3>
+                <p className="text-sm text-gray-500 mb-4">
+                  Simulated occurrences from Markov chain transitions
+                </p>
+                <div className="overflow-x-auto">
+                  <table className="min-w-full table-auto">
+                    <thead>
+                      <tr className="bg-gray-50">
+                        <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Number</th>
+                        <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Simulated %</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {Array.from(analysis.monteCarlo.occurrence.entries())
+                        .sort((a, b) => b[1] - a[1])
+                        .slice(0, 10)
+                        .map(([number, occur]) => (
+                        <tr key={number} className="border-t">
+                          <td className="px-4 py-2 text-sm">{formatNumber(number)}</td>
+                          <td className="px-4 py-2 text-sm">{(occur * 100).toFixed(1)}%</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+
+            {ensembleTableData.length > 0 && (
+              <div className="bg-white p-4 rounded-lg shadow mt-6">
+                <h3 className="text-lg font-medium text-gray-900 mb-4">Ensemble Prediction Table</h3>
+                <p className="text-sm text-gray-500 mb-4">
+                  Combined scores from all analysis methods
+                </p>
+                <div className="overflow-x-auto">
+                  <table className="min-w-full table-auto">
+                    <thead>
+                      <tr className="bg-gray-50">
+                        <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Number</th>
+                        <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Frequency</th>
+                        <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Transition</th>
+                        <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">ML Prob</th>
+                        <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Trend</th>
+                        <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Monte Carlo</th>
+                        <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Final Score</th>
+                        <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Confidence</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {ensembleTableData.map((item) => (
+                        <tr key={item.number} className="border-t">
+                          <td className="px-4 py-2 text-sm font-medium">{item.number}</td>
+                          <td className="px-4 py-2 text-sm">{item.frequency.toFixed(3)}</td>
+                          <td className="px-4 py-2 text-sm">{item.transitionProb.toFixed(3)}</td>
+                          <td className="px-4 py-2 text-sm">{item.mlProb.toFixed(3)}</td>
+                          <td className="px-4 py-2 text-sm">{item.trendWeight}</td>
+                          <td className="px-4 py-2 text-sm">{item.monteOccur.toFixed(1)}%</td>
+                          <td className="px-4 py-2 text-sm">{item.finalScore.toFixed(3)}</td>
+                          <td className="px-4 py-2 text-sm">{item.confidence.toFixed(1)}%</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
                 </div>
               </div>
             )}

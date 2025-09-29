@@ -332,13 +332,31 @@ router.get('/history', async (req, res) => {
     ]);
 
     console.log(`Fetched ${results.length} history results from DB`);
-    if (results.length === 0) {
-      console.warn('No history results found in DB. Run the scraper or seed data to populate.');
-      return res.json({
-        history: [],
-        total: 0,
-        message: 'No historical data available. Try seeding the database or running the scraper.'
-      });
+    if (results.length < 5) {
+      console.warn('Low history results found in DB, triggering auto-scrape...');
+      try {
+        const scrapedCount = await scrapeHistory();
+        console.log(`Auto-scrape completed, added ${scrapedCount} results`);
+        // Refetch after scrape
+        const refetchedResults = await Result.aggregate([
+          {
+            $match: {
+              date: { $lt: yesterday },
+              $expr: { $not: { $in: [ { $dayOfWeek: "$date" }, [1, 7] ] } }
+            }
+          },
+          { $sort: { date: -1 } },
+          { $limit: 50 }
+        ]);
+        results = refetchedResults;
+        console.log(`Refetched ${results.length} history results after auto-scrape`);
+      } catch (scrapeError) {
+        console.error('Auto-scrape failed:', scrapeError.message);
+        return res.status(500).json({
+          message: 'Failed to fetch history and auto-scrape failed',
+          error: scrapeError.message
+        });
+      }
     }
 
     res.json({

@@ -1,0 +1,8 @@
+{
+  "dependencies": {
+    "fft-js": "^0.0.12",
+    "ml-cart": "^2.1.1",
+    "ml-kmeans": "^6.0.0",
+    "ml-random-forest": "^2.1.0"
+  }
+}

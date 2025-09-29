@@ -1,7 +1,13 @@
 import axios, { AxiosError } from 'axios';
 import { toast } from 'react-hot-toast';
 
-const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
+const API_URL = process.env.VITE_API_URL || 'http://localhost:5000';
+
+interface Prediction {
+  number: number;
+  score: number;
+  confidence: number;
+}
 
 // Create axios instance
 const api = axios.create({
@@ -59,16 +65,141 @@ api.interceptors.response.use(
   }
 );
 
+interface ApiResponse<T> {
+  success: boolean;
+  data: T;
+}
+
+interface Prediction {
+  number: number;
+  confidence: number;
+  score: number;
+}
+
+// Analysis interfaces
+interface FrequencyAnalysis {
+  numberFreq: Map<number, number>;
+  digitFreq: { tens: Map<number, number>; units: Map<number, number> };
+  histogram: { bins: string[]; counts: number[] };
+  overrepresented: { number: number; count: number }[];
+  underrepresented: { number: number; count: number }[];
+}
+
+interface ChiSquareTest {
+  chiSquare: number;
+  pValue: number;
+  isRandom: boolean;
+  degreesOfFreedom: number;
+  deviatingNumbers: { number: number; observed: number; expected: number }[];
+}
+
+interface Autocorrelation {
+  lags: number[];
+  correlations: number[];
+  graphData: { x: number[]; y: number[] };
+}
+
+interface MarkovMatrix {
+  firstOrder: number[][];
+  secondOrder: number[][][];
+  steadyStateProbs: number[];
+}
+
+interface RunsTest {
+  runs: number;
+  expectedRuns: number;
+  zScore: number;
+  pValue: number;
+  isRandom: boolean;
+}
+
+interface TrendAnalysis {
+  smoothedSeries: number[];
+  smoothedEnhanced: number[];
+  trend: number;
+  probableNumbers: number[];
+}
+
+interface BayesianUpdate {
+  updatedProbs: Map<number, number>;
+}
+
+interface DigitCorrelation {
+  correlationMatrix: number[][];
+  frequentPairs: { tens: number; units: number; count: number }[];
+}
+
+interface MLClassifier {
+  model: any;
+  featureImportance: number[];
+  probs: Map<number, number>;
+}
+
+interface MonteCarlo {
+  occurrence: Map<number, number>;
+}
+
+interface ConfidenceRanking {
+  rankedNumbers: { number: number; score: number; confidence: number }[];
+}
+
+interface SpectralAnalysis {
+  dominantFrequencies: number[];
+  signalEnergy: number;
+}
+
+interface AnalysisResults {
+  frequencyAnalysis: FrequencyAnalysis;
+  chiSquareTest: ChiSquareTest;
+  autocorrelation: Autocorrelation;
+  markovMatrix: MarkovMatrix;
+  runsTest: RunsTest;
+  trendAnalysis: TrendAnalysis;
+  bayesianUpdate: BayesianUpdate;
+  digitCorrelation: DigitCorrelation;
+  mlClassifier: MLClassifier;
+  monteCarlo: MonteCarlo;
+  confidenceRanking: ConfidenceRanking;
+  spectralAnalysis: SpectralAnalysis;
+  patterns: any[];
+  trends: any[];
+  finalPredictions: Prediction[];
+  modelMetrics?: {
+    accuracy: number;
+    precision: number;
+    recall: number;
+    f1Score: number;
+    confusionMatrix: number[][];
+    lastUpdated: string;
+  };
+}
+
+interface PredictionTableItem {
+  number: string;
+  frequency: number;
+  transitionProb: number;
+  mlProb: number;
+  trendWeight: number;
+  monteOccur: number;
+  finalScore: number;
+  confidence: number;
+}
+
 // API methods
 export const predictionApi = {
   // Get predictions for the next number with analysis
-  getPredictions: async (limit: number = 10) => {
+  getPredictions: async (limit: number = 10): Promise<ApiResponse<{
+    predictions: Prediction[];
+    analysis: AnalysisResults;
+    predictionTable: PredictionTableItem[];
+    summary: any;
+  }>> => {
     try {
       const response = await api.get('/api/predictions/next', {
         params: { limit },
         timeout: 60000, // 1 minute timeout for predictions
       });
-      return response.data;
+      return { data: response.data, status: response.status };
     } catch (error) {
       console.error('Error fetching predictions:', error);
       throw error;
@@ -76,12 +207,12 @@ export const predictionApi = {
   },
   
   // Get detailed analysis (admin only)
-  getAnalysis: async (timeRange: 'day' | 'week' | 'month' = 'day') => {
+  getAnalysis: async (timeRange: 'day' | 'week' | 'month' = 'day'): Promise<ApiResponse<any>> => {
     try {
       const response = await api.get('/api/predictions/analysis', {
         params: { range: timeRange },
       });
-      return response.data;
+      return { data: response.data, status: response.status };
     } catch (error) {
       console.error('Error fetching analysis:', error);
       throw error;
@@ -89,12 +220,12 @@ export const predictionApi = {
   },
   
   // Get historical predictions accuracy
-  getAccuracy: async (days: number = 30) => {
+  getAccuracy: async (days: number = 30): Promise<ApiResponse<any>> => {
     try {
       const response = await api.get('/api/predictions/accuracy', {
         params: { days },
       });
-      return response.data;
+      return { data: response.data, status: response.status };
     } catch (error) {
       console.error('Error fetching accuracy data:', error);
       throw error;
@@ -102,12 +233,12 @@ export const predictionApi = {
   },
   
   // Get pattern analysis
-  getPatterns: async (patternLength: number = 3) => {
+  getPatterns: async (patternLength: number = 3): Promise<ApiResponse<any>> => {
     try {
       const response = await api.get('/api/predictions/patterns', {
         params: { length: patternLength },
       });
-      return response.data;
+      return { data: response.data, status: response.status };
     } catch (error) {
       console.error('Error fetching pattern analysis:', error);
       throw error;
@@ -115,10 +246,10 @@ export const predictionApi = {
   },
   
   // Get spectral analysis
-  getSpectralAnalysis: async () => {
+  getSpectralAnalysis: async (): Promise<ApiResponse<any>> => {
     try {
       const response = await api.get('/api/predictions/spectral');
-      return response.data;
+      return { data: response.data, status: response.status };
     } catch (error) {
       console.error('Error fetching spectral analysis:', error);
       throw error;
@@ -126,12 +257,95 @@ export const predictionApi = {
   },
   
   // Get model performance metrics
-  getModelMetrics: async () => {
+  getModelMetrics: async (): Promise<ApiResponse<any>> => {
     try {
       const response = await api.get('/api/predictions/metrics');
-      return response.data;
+      return { data: response.data, status: response.status };
     } catch (error) {
       console.error('Error fetching model metrics:', error);
+      throw error;
+    }
+  },
+};
+
+export const resultsAPI = {
+  // Get upcoming panel info
+  getFuture: async (): Promise<ApiResponse<any>> => {
+    try {
+      const response = await api.get('/api/results/future');
+      return { data: response.data, status: response.status };
+    } catch (error) {
+      console.error('Error fetching future results:', error);
+      throw error;
+    }
+  },
+
+  // Get guesses
+  getGuesses: async (forcePredict: boolean = false): Promise<ApiResponse<any>> => {
+    try {
+      const response = await api.get('/api/results/guess', {
+        params: { useLatest: forcePredict },
+      });
+      return { data: response.data, status: response.status };
+    } catch (error) {
+      console.error('Error fetching guesses:', error);
+      throw error;
+    }
+  },
+
+  // Fetch latest result
+  fetchLatest: async (): Promise<ApiResponse<any>> => {
+    try {
+      const response = await api.get('/api/results/fetch-latest');
+      return { data: response.data, status: response.status };
+    } catch (error) {
+      console.error('Error fetching latest result:', error);
+      throw error;
+    }
+  },
+
+  // Subscribe to latest updates via SSE
+  subscribeToLatest: (
+    onData: (data: any) => void,
+    onError: (error: Event | string) => void
+  ): (() => void) => {
+    const eventSource = new EventSource(`${API_URL}/api/results/stream/latest`);
+    
+    eventSource.onopen = () => {
+      console.log('SSE connection opened');
+      onData({ type: 'connected' });
+    };
+
+    eventSource.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data);
+        onData({ type: 'latest-update', ...data });
+      } catch (e) {
+        console.error('Error parsing SSE message:', e);
+      }
+    };
+
+    eventSource.onerror = (error) => {
+      console.error('SSE error:', error);
+      onError(error);
+      eventSource.close();
+    };
+
+    return () => {
+      eventSource.close();
+      console.log('SSE connection closed');
+    };
+  },
+
+  // Get historical results
+  getHistory: async (limit: number = 50): Promise<ApiResponse<any>> => {
+    try {
+      const response = await api.get('/api/results/history', {
+        params: { limit },
+      });
+      return { data: response.data, status: response.status };
+    } catch (error) {
+      console.error('Error fetching history:', error);
       throw error;
     }
   },
