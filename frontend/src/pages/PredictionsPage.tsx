@@ -68,11 +68,28 @@ const PredictionsPage = () => {
     }
   };
 
+  const fetchCombined = async () => {
+    try {
+      setIsLoading(true);
+      const resp = await predictionApi.getCombined(5);
+      if (resp.success) {
+        setPredictions(resp.data.top.map((t: any) => ({ number: t.number, confidence: t.confidence })));
+        setAnalysis({ combinedExplain: resp.data.top });
+      }
+    } catch (e) {
+      console.error('Error fetching combined predictions', e);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const fetchLiveData = async () => {
     try {
       setLiveLoading(true);
       console.log('Fetching live data...');
-      const response = await fetch('/api/results/fetch-latest');
+      const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/results/fetch-latest`, {
+        headers: { 'Cache-Control': 'no-cache' },
+      });
       const data = await response.json();
       console.log('Live data response:', data);
       
@@ -235,6 +252,13 @@ const PredictionsPage = () => {
                 </>
               )}
             </button>
+            <button
+              onClick={fetchCombined}
+              disabled={isLoading}
+              className="px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 disabled:opacity-50"
+            >
+              Hybrid Top 5
+            </button>
           </div>
         </div>
 
@@ -322,6 +346,42 @@ const PredictionsPage = () => {
                           },
                         }}
                       />
+                    </div>
+                  </div>
+                )}
+
+                {analysis?.combinedExplain && (
+                  <div className="mt-8">
+                    <h3 className="text-lg font-medium text-gray-900 mb-4">Hybrid Top 5 (Human + System)</h3>
+                    <div className="bg-white p-4 rounded-lg shadow">
+                      <div className="space-y-4">
+                        {(analysis.combinedExplain as Array<any>).map((item, idx) => (
+                          <div key={idx} className="border rounded-md p-3">
+                            <div className="flex items-center justify-between">
+                              <div className="text-xl font-semibold">{item.number.toString().padStart(2, '0')}</div>
+                              <div className="text-sm text-gray-600">{item.confidence}%</div>
+                            </div>
+                            <div className="mt-2 grid grid-cols-1 md:grid-cols-2 gap-3">
+                              <div>
+                                <div className="text-sm font-medium text-gray-700">Human logic</div>
+                                <ul className="list-disc list-inside text-sm text-gray-700 mt-1">
+                                  {item.human?.map((h: string, i: number) => (
+                                    <li key={i}>{h}</li>
+                                  ))}
+                                </ul>
+                              </div>
+                              <div>
+                                <div className="text-sm font-medium text-gray-700">System logic</div>
+                                <ul className="list-disc list-inside text-sm text-gray-700 mt-1">
+                                  {item.system?.map((s: string, i: number) => (
+                                    <li key={i}>{s}</li>
+                                  ))}
+                                </ul>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
                     </div>
                   </div>
                 )}

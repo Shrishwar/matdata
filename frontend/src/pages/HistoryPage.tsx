@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { resultsAPI } from '../lib/api';
+import { resultsAPI } from '../services/api';
 import { format } from 'date-fns';
 
 interface Result {

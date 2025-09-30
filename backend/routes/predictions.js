@@ -364,4 +364,210 @@ router.get('/live',
   }
 );
 
+/**
+ * @route   GET /api/predictions/combined
+ * @desc    Deterministic hybrid predictor (Human heuristics + AI ensemble) using ONLY DPBoss history
+ * @access  Public
+ */
+router.get('/combined',
+  validate([
+    query('limit').optional().isInt({ min: 1, max: 10 }).withMessage('Limit must be between 1 and 10')
+  ]),
+  async (req, res) => {
+    try {
+      const limit = parseInt(req.query.limit) || 5;
+
+      // Load only real DPBoss history from DB
+      const history = await Result.find({})
+        .sort({ date: 1 }) // chronological
+        .lean();
+
+      if (!history || history.length < 50) {
+        return res.status(400).json({
+          success: false,
+          error: 'Insufficient DPBoss history',
+          details: `Need >=50 records, found ${history ? history.length : 0}`,
+        });
+      }
+
+      // Transform for AI predictor (numbers 0-99)
+      const series = history.map(h => {
+        const n = parseInt(h.double, 10);
+        return {
+          number: isNaN(n) ? 0 : n,
+          date: h.date,
+          timestamp: h.scrapedAt || h.date,
+          gameType: 'MAIN_BAZAR',
+          openClose: 'CLOSE',
+          tens: Math.floor((isNaN(n) ? 0 : n) / 10),
+          units: (isNaN(n) ? 0 : n) % 10,
+        };
+      });
+
+      // AI probabilities (deterministic)
+      const ai = new MatkaPredictor();
+      ai.historicalData = series;
+      const aiResult = await ai.generatePredictions(100);
+      // Map to probability by number (0..99)
+      const aiProbByNumber = new Map();
+      aiResult.predictions.forEach(p => {
+        aiProbByNumber.set(p.number, Math.max(0, Math.min(1, p.confidence / 100)));
+      });
+
+      // Human heuristics over the same dataset
+      const numbers = series.map(s => s.number);
+      const universe = Array.from({ length: 100 }, (_, i) => i);
+
+      // Frequency (last 200 draws or all if smaller)
+      const windowSize = Math.min(200, numbers.length);
+      const window = numbers.slice(-windowSize);
+      const freq = new Array(100).fill(0);
+      window.forEach(n => { if (n >= 0 && n < 100) freq[n]++; });
+      const maxFreq = Math.max(...freq) || 1;
+      const freqScore = freq.map(f => f / maxFreq); // 0..1
+
+      // Gap (recency): more recent → higher score, long absence → boost with taper
+      const lastIndex = new Array(100).fill(-1);
+      for (let i = numbers.length - 1; i >= 0; i--) {
+        const n = numbers[i];
+        if (lastIndex[n] === -1) lastIndex[n] = i;
+      }
+      const latestIdx = numbers.length - 1;
+      const gapScore = lastIndex.map(idx => {
+        if (idx === -1) return 0.5; // never seen: moderate unknown
+        const gap = latestIdx - idx;
+        // Normalize with soft cap at 100 draws
+        return Math.min(1, gap / 100);
+      });
+
+      // Transition probability (first-order Markov)
+      const trans = Array.from({ length: 100 }, () => new Array(100).fill(0));
+      for (let i = 1; i < numbers.length; i++) {
+        const a = numbers[i - 1];
+        const b = numbers[i];
+        if (a >= 0 && a < 100 && b >= 0 && b < 100) trans[a][b]++;
+      }
+      // Normalize rows
+      const transProb = trans.map(row => {
+        const sum = row.reduce((s, v) => s + v, 0);
+        if (sum === 0) return row.map(() => 0);
+        return row.map(v => v / sum);
+      });
+      const recent = numbers[numbers.length - 1];
+      const transFromRecent = recent >= 0 && recent < 100 ? transProb[recent] : new Array(100).fill(0);
+
+      // Digit balance: prefer numbers whose digits keep the tens/units distributions near-uniform
+      const tensCount = new Array(10).fill(0);
+      const unitsCount = new Array(10).fill(0);
+      numbers.forEach(n => {
+        const t = Math.floor(n / 10);
+        const u = n % 10;
+        tensCount[t]++; unitsCount[u]++;
+      });
+      const avgTens = numbers.length / 10;
+      const avgUnits = numbers.length / 10;
+      const digitBalance = universe.map(n => {
+        const t = Math.floor(n / 10);
+        const u = n % 10;
+        const tensDev = Math.abs(tensCount[t] + 1 - avgTens);
+        const unitsDev = Math.abs(unitsCount[u] + 1 - avgUnits);
+        const maxDev = Math.max(avgTens, avgUnits) || 1;
+        return 1 - Math.min(1, (tensDev + unitsDev) / (2 * maxDev));
+      });
+
+      // Runs: discourage immediate repeats of recent clusters; encourage breaking long monotonic runs
+      // Simple heuristic: penalize numbers equal to the most recent and reward different decade
+      const recentDecade = Math.floor(recent / 10);
+      const runsScore = universe.map(n => {
+        if (n === recent) return 0;
+        const decade = Math.floor(n / 10);
+        return decade === recentDecade ? 0.5 : 1.0;
+      });
+
+      // Normalize arrays to 0..1 utility
+      const normalize = arr => {
+        const min = Math.min(...arr);
+        const max = Math.max(...arr);
+        const span = max - min || 1;
+        return arr.map(v => (v - min) / span);
+      };
+
+      const freqN = normalize(freqScore);
+      const gapN = normalize(gapScore);
+      const transN = normalize(transFromRecent);
+      const digitN = normalize(digitBalance);
+      const runsN = normalize(runsScore);
+
+      // Human composite weight (deterministic)
+      const humanWeight = universe.map((n, i) => (
+        0.35 * freqN[i] +
+        0.25 * gapN[i] +
+        0.20 * transN[i] +
+        0.10 * digitN[i] +
+        0.10 * runsN[i]
+      ));
+
+      // AI probability (0..1), default 0 if not present
+      const aiProb = universe.map(n => aiProbByNumber.get(n) || 0);
+
+      // Combined score: AI + Human weight (scaled) with deterministic weights
+      const combined = universe.map((_, i) => 0.6 * aiProb[i] + 0.4 * humanWeight[i]);
+
+      // Rank and prepare explanations
+      const ranked = universe
+        .map(n => ({ n, score: combined[n] }))
+        .sort((a, b) => b.score - a.score)
+        .slice(0, limit);
+
+      const toPct = (x) => Math.round(Math.max(0, Math.min(1, x)) * 100);
+
+      const humanExplain = (n) => {
+        const lastIdx = lastIndex[n];
+        const gap = lastIdx === -1 ? 'never seen' : `${latestIdx - lastIdx} draws gap`;
+        const tProb = transFromRecent[n] ? transFromRecent[n].toFixed(2) : '0.00';
+        const fRank = (100 - freqN[n] * 100); // inverted rank proxy
+        return [
+          `Number ${n.toString().padStart(2, '0')} ${gap}`,
+          `Transition from ${recent.toString().padStart(2, '0')} → ${n.toString().padStart(2, '0')} = ${tProb}`,
+          `Frequency strength rank ≈ #${Math.max(1, Math.round(fRank / 2))}`,
+        ];
+      };
+
+      const systemExplain = (n) => {
+        const prob = toPct(aiProb[n]);
+        const freqPct = Math.round(freqN[n] * 100);
+        const transPct = Math.round(transN[n] * 100);
+        return [
+          `AI ensemble probability ≈ ${prob}%`,
+          `Markov/transition score ≈ ${transPct}%`,
+          `Frequency feature score ≈ ${freqPct}%`,
+        ];
+      };
+
+      const response = {
+        success: true,
+        data: {
+          top: ranked.map(r => ({
+            number: r.n,
+            confidence: toPct(r.score),
+            human: humanExplain(r.n),
+            system: systemExplain(r.n),
+          })),
+          provenance: {
+            source: 'dpboss-history',
+            totalRecords: history.length,
+            deterministic: true,
+            modelVersion: 'hybrid-1.0.0',
+          },
+        },
+      };
+
+      res.json(response);
+    } catch (error) {
+      logger.error('Combined predictor error:', { error: error.message, stack: error.stack });
+      res.status(500).json({ success: false, error: 'Failed to compute combined predictions' });
+    }
+  }
+);
+
 module.exports = router;

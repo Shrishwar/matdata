@@ -1,6 +1,6 @@
 import { createContext, useContext, ReactNode, useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { authAPI } from '../lib/api';
+import { authAPI } from '../services/api';
 
 type User = {
   id: string;

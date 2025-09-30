@@ -1,7 +1,7 @@
 import axios, { AxiosError } from 'axios';
 import { toast } from 'react-hot-toast';
 
-const API_URL = process.env.VITE_API_URL || 'http://localhost:5000';
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
 interface Prediction {
   number: number;
@@ -207,6 +207,17 @@ export const predictionApi = {
     }
   },
 
+  // Get hybrid combined predictions (top 5 by default)
+  getCombined: async (limit: number = 5): Promise<ApiResponse<{ top: Array<{ number: number; confidence: number; human: string[]; system: string[] }>; provenance: any }>> => {
+    try {
+      const response = await api.get('/api/predictions/combined', { params: { limit } });
+      return { success: response.data.success, data: response.data.data, status: response.status };
+    } catch (error) {
+      console.error('Error fetching combined predictions:', error);
+      throw error;
+    }
+  },
+
   // Get live predictions based on DPBoss live chart data
   getLivePredictions: async (limit: number = 5): Promise<ApiResponse<{
     predictions: Prediction[];
@@ -292,7 +303,7 @@ export const resultsAPI = {
   getFuture: async (): Promise<ApiResponse<any>> => {
     try {
       const response = await api.get('/api/results/future');
-      return { success: response.data.success, data: response.data.data, status: response.status };
+      return { success: true, data: response.data.upcoming, status: response.status };
     } catch (error) {
       console.error('Error fetching future results:', error);
       throw error;
@@ -305,7 +316,7 @@ export const resultsAPI = {
       const response = await api.get('/api/results/guess', {
         params: { useLatest: forcePredict },
       });
-      return { success: response.data.success, data: response.data.data, status: response.status };
+      return { success: response.data.ok === true, data: response.data, status: response.status };
     } catch (error) {
       console.error('Error fetching guesses:', error);
       throw error;
@@ -315,8 +326,8 @@ export const resultsAPI = {
   // Fetch latest result
   fetchLatest: async (): Promise<ApiResponse<any>> => {
     try {
-      const response = await api.get('/api/results/fetch-latest');
-      return { success: response.data.success, data: response.data.data, status: response.status };
+      const response = await api.get('/api/results/fetch-latest', { headers: { 'Cache-Control': 'no-cache' } });
+      return { success: response.data.ok === true, data: response.data.latest, status: response.status };
     } catch (error) {
       console.error('Error fetching latest result:', error);
       throw error;
@@ -357,12 +368,12 @@ export const resultsAPI = {
   },
 
   // Get historical results
-  getHistory: async (limit: number = 50): Promise<ApiResponse<any>> => {
+  getHistory: async (limit: number = 50): Promise<ApiResponse<{ history: any[] }>> => {
     try {
       const response = await api.get('/api/results/history', {
         params: { limit },
       });
-      return { success: response.data.success, data: response.data.data, status: response.status };
+      return { success: true, data: { history: response.data.history }, status: response.status };
     } catch (error) {
       console.error('Error fetching history:', error);
       throw error;

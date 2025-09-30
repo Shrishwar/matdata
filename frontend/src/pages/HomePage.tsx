@@ -78,7 +78,7 @@ const HomePage = () => {
         resultsAPI.getFuture(),
         resultsAPI.getGuesses()
       ]);
-      setUpcoming(futureRes.data.upcoming);
+      setUpcoming(futureRes.data);
       setGuesses(guessRes.data.guesses);
       setError(null);
     } catch (err) {
@@ -108,10 +108,10 @@ const fetchLatestAndPredict = async () => {
     console.log('Guesses API response:', guessRes.data); // Log full new response
     setLatestGuess(guessRes.data.latest || latestRes.data);
     setLiveMatch(guessRes.data.liveMatch);
-    setLiveHtmlSnippet(guessRes.data.liveHtmlSnippet);
+    setLiveHtmlSnippet(guessRes.data.liveHtmlSnippet || '');
     setGuesses(guessRes.data.guesses || []);
-    setBacktest(guessRes.data.backtest);
-    setMeta(guessRes.data.meta);
+    setBacktest(guessRes.data.backtest || null);
+    setMeta(guessRes.data.meta || null);
   } catch (err) {
     console.error('Failed to fetch latest and predict:', err);
     setError('Failed to fetch latest result. Please try again later.');
