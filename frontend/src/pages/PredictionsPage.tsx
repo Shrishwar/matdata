@@ -49,7 +49,7 @@ const PredictionsPage = () => {
     try {
       setIsLoading(true);
       console.log('Fetching predictions...');
-      const response = await predictionApi.getPredictions();
+      const response = await predictionApi.getPredictions(3);
       console.log('Predictions response:', response);
       
       if (response.success) {
@@ -58,7 +58,19 @@ const PredictionsPage = () => {
         setPredictionTable(response.data.predictionTable || []);
         setLastUpdated(new Date());
       } else {
-        toast.error('Failed to fetch predictions');
+        // fallback to hybrid top 3
+        try {
+          const resp = await predictionApi.getCombined(3);
+          if (resp.success) {
+            setPredictions(resp.data.top.map((t: any) => ({ number: t.number, confidence: t.confidence })));
+            setAnalysis({ combinedExplain: resp.data.top });
+            setLastUpdated(new Date());
+          } else {
+            toast.error('Failed to fetch predictions');
+          }
+        } catch (e) {
+          toast.error('Failed to fetch predictions');
+        }
       }
     } catch (error) {
       console.error('Error fetching predictions:', error);
@@ -71,7 +83,7 @@ const PredictionsPage = () => {
   const fetchCombined = async () => {
     try {
       setIsLoading(true);
-      const resp = await predictionApi.getCombined(5);
+      const resp = await predictionApi.getCombined(3);
       if (resp.success) {
         setPredictions(resp.data.top.map((t: any) => ({ number: t.number, confidence: t.confidence })));
         setAnalysis({ combinedExplain: resp.data.top });
@@ -257,7 +269,7 @@ const PredictionsPage = () => {
               disabled={isLoading}
               className="px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 disabled:opacity-50"
             >
-              Hybrid Top 5
+              Hybrid Top 3
             </button>
           </div>
         </div>

@@ -39,29 +39,44 @@ router.get('/next',
   ]),
   async (req, res) => {
     try {
-      const limit = parseInt(req.query.limit) || 10;
+      const limit = parseInt(req.query.limit) || 3;
 
       // Check if sufficient data exists
       const dataCount = await Result.countDocuments();
-      if (dataCount < 10) {
-        return res.status(400).json({
-          success: false,
-          error: 'Insufficient data for predictions',
-          details: `Only ${dataCount} records found. Please run the scraper to populate the database with DPBoss data.`
-        });
-      }
+      let responsePayload;
 
-      const result = await predictor.generatePredictions(limit);
+      if (dataCount >= 10) {
+        const result = await predictor.generatePredictions(limit);
+        responsePayload = {
+          predictions: result.predictions.slice(0, limit),
+          analysis: result.analysis,
+          predictionTable: result.predictionTable,
+          summary: result.summary
+        };
+      } else {
+        // Heuristic fallback to always return top-3 using available data
+        const history = await Result.find({}).sort({ date: -1 }).limit(Math.min(50, dataCount)).lean();
+        const freq = new Array(100).fill(0);
+        history.forEach(h => {
+          const n = parseInt(h.double, 10);
+          if (!isNaN(n) && n >= 0 && n < 100) freq[n]++;
+        });
+        const ranked = Array.from({ length: 100 }, (_, n) => ({ n, c: freq[n] }))
+          .sort((a, b) => b.c - a.c || a.n - b.n)
+          .slice(0, limit)
+          .map((r, idx) => ({ number: r.n, confidence: Math.max(50, 70 - idx * 10) }));
+        responsePayload = {
+          predictions: ranked,
+          analysis: { note: 'Fallback heuristic due to low data', total: dataCount },
+          predictionTable: [],
+          summary: { totalRecords: dataCount, lastNumber: history[0] ? parseInt(history[0].double, 10) : null, isRandom: false, topPredictions: ranked }
+        };
+      }
       
       // Format the response with full analysis
       const response = {
         success: true,
-        data: {
-          predictions: result.predictions,
-          analysis: result.analysis, // Full analysis object
-          predictionTable: result.predictionTable,
-          summary: result.summary
-        }
+        data: responsePayload
       };
       
       res.json(response);

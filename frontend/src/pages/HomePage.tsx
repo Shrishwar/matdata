@@ -74,12 +74,45 @@ const HomePage = () => {
   const fetchData = async () => {
     try {
       setIsLoading(true);
-      const [futureRes, guessRes] = await Promise.all([
-        resultsAPI.getFuture(),
-        resultsAPI.getGuesses()
-      ]);
-      setUpcoming(futureRes.data);
-      setGuesses(guessRes.data.guesses);
+      // Load future first; guesses may fail independently
+      try {
+        const futureRes = await resultsAPI.getFuture();
+        setUpcoming(futureRes.data);
+      } catch (futureErr) {
+        console.warn('Future endpoint failed, attempting client-side fallback');
+        // Client-side fallback: compute date and fetch hybrid top 3
+        const today = new Date();
+        const dayOfWeek = today.getDay();
+        let upcomingDate = new Date(today);
+        if (dayOfWeek === 0 || dayOfWeek === 6) {
+          const daysToMonday = (1 - dayOfWeek + 7) % 7;
+          upcomingDate.setDate(today.getDate() + (daysToMonday === 0 ? 7 : daysToMonday));
+        }
+        let predictedTop3: string[] = [];
+        try {
+          const resp = await predictionApi.getCombined(3);
+          if (resp.success) {
+            predictedTop3 = resp.data.top.map((t: any) => t.number.toString().padStart(2, '0'));
+          }
+        } catch (e) {
+          console.warn('Hybrid fallback failed');
+        }
+        setUpcoming({
+          date: upcomingDate.toISOString().split('T')[0],
+          open3: 'TBD',
+          middle: 'TBD',
+          close3: 'TBD',
+          double: 'TBD',
+          predictedTop3,
+          finalNumber: predictedTop3[0]
+        });
+      }
+      try {
+        const guessRes = await resultsAPI.getGuesses();
+        setGuesses(guessRes.data.guesses || []);
+      } catch (e) {
+        console.warn('Guesses failed, continuing with future only');
+      }
       setError(null);
     } catch (err) {
       console.error('Failed to fetch data:', err);
@@ -263,10 +296,35 @@ const fetchLivePredictions = async () => {
                     </div>
                     <div className="text-center">
                       <div className="text-3xl font-bold text-red-600 dark:text-red-400">
-                        {upcoming.finalNumber || 'TBD'}
+                        {upcoming.finalNumber || (upcoming.predictedTop3?.[0] ?? 'TBD')}
                       </div>
                       <div className="text-sm text-gray-500 dark:text-gray-400">Final Number</div>
                     </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {upcoming?.predictedTop3 && upcoming.predictedTop3.length > 0 && (
+            <div className="bg-white dark:bg-gray-800 shadow overflow-hidden sm:rounded-lg">
+              <div className="px-4 py-5 sm:px-6">
+                <h3 className="text-lg leading-6 font-medium text-gray-900 dark:text-white">
+                  Today's Top 3 Predicted Numbers
+                </h3>
+                <p className="mt-1 max-w-2xl text-sm text-gray-500 dark:text-gray-400">
+                  Auto-generated from DPBoss history
+                </p>
+              </div>
+              <div className="border-t border-gray-200 dark:border-gray-700">
+                <div className="p-6">
+                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+                    {upcoming.predictedTop3.map((n: string, idx: number) => (
+                      <div key={idx} className="text-center">
+                        <div className="text-4xl font-extrabold text-indigo-600 dark:text-indigo-400">{n}</div>
+                        <div className="text-sm text-gray-500 dark:text-gray-400">Pick #{idx + 1}</div>
+                      </div>
+                    ))}
                   </div>
                 </div>
               </div>

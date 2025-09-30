@@ -5,10 +5,12 @@ const Tesseract = require('tesseract.js');
 const { auth, admin } = require('../middleware/auth');
 const Result = require('../models/Result');
 const { scrapeLatest, scrapeHistory, getLiveExtracted, bulkScrape, uploadCsvFallback } = require('../services/scraper/dpbossScraper');
+const MatkaPredictor = require('../prediction-engine/dist/services/prediction/matkaPredictor.js').default;
 const geniusPredictor = require('../server/genius/predictor');
 const featurizer = require('../services/featurizer');
 const AnalysisRecord = require('../models/AnalysisRecord');
 const EventEmitter = require('events');
+const { fillMissingWeekdays } = require('../services/historySync');
 
 const upload = multer({ storage: multer.memoryStorage() });
 
@@ -288,6 +290,37 @@ router.get('/future', async (req, res) => {
         close3: 'TBD',
         double: 'TBD'
       };
+
+      // Try to predict today's top 3 numbers using recent history
+      try {
+        const history = await Result.find({})
+          .sort({ date: -1 })
+          .limit(100)
+          .lean();
+        if (history && history.length >= 10) {
+          const series = history.map(item => ({
+            number: parseInt(item.double, 10),
+            date: item.date,
+            timestamp: item.scrapedAt || item.date,
+            gameType: 'MAIN_BAZAR',
+            openClose: 'CLOSE',
+            tens: Math.floor(parseInt(item.double, 10) / 10),
+            units: parseInt(item.double, 10) % 10,
+          }));
+
+          const predictor = new MatkaPredictor();
+          predictor.historicalData = series;
+          const pred = await predictor.generatePredictions(3);
+          const top3 = pred.predictions.slice(0, 3).map(p => p.number);
+          // Attach to upcoming; set final number guess as first
+          upcoming.predictedTop3 = top3.map(n => n.toString().padStart(2, '0'));
+          if (!upcoming.finalNumber && upcoming.predictedTop3.length > 0) {
+            upcoming.finalNumber = upcoming.predictedTop3[0];
+          }
+        }
+      } catch (e) {
+        console.warn('Prediction for future endpoint failed:', e.message);
+      }
     } else {
       // Fallback placeholder for next Monday
       const today = new Date();
@@ -320,7 +353,7 @@ router.get('/history', async (req, res) => {
     console.log('Fetching history from DB...');
     const yesterday = new Date();
     yesterday.setDate(yesterday.getDate() - 1);
-    const results = await Result.aggregate([
+    let results = await Result.aggregate([
       {
         $match: {
           date: { $lt: yesterday },
@@ -366,6 +399,19 @@ router.get('/history', async (req, res) => {
   } catch (error) {
     console.error('Error fetching history:', error);
     res.status(500).json({ message: 'Server error fetching history', error: error.message });
+  }
+});
+
+// @route   POST /api/results/fill-gaps
+// @desc    Detect and fill missing weekdays with estimated entries
+// @access  Private/Admin
+router.post('/fill-gaps', auth, admin, async (req, res) => {
+  try {
+    const lookbackDays = parseInt(req.body?.lookbackDays || '90');
+    const result = await fillMissingWeekdays({ lookbackDays });
+    res.json({ ok: true, ...result });
+  } catch (error) {
+    res.status(500).json({ ok: false, message: 'Gap filling failed', error: error.message });
   }
 });
 

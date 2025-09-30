@@ -87,6 +87,13 @@ const resultSchema = new mongoose.Schema({
   }
 }, { timestamps: true });
 
+// Estimation metadata
+resultSchema.add({
+  isEstimated: { type: Boolean, default: false },
+  estimatedFrom: { type: String, default: null },
+  confirmedAt: { type: Date, default: null }
+});
+
 // Virtuals for calculated fields (openSum and closeSum are now stored fields)
 
 resultSchema.virtual('openTens').get(function() {

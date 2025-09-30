@@ -174,9 +174,30 @@ const startServer = async () => {
 
           // Broadcast to SSE clients
           broadcastLatestUpdate(latest, guesses, liveMatch, liveHtmlSnippet);
+
+          // Attempt to confirm any previously estimated record for this date
+          try {
+            const { confirmIfRealArrives } = require('./services/historySync');
+            await confirmIfRealArrives(latest);
+          } catch (e) {
+            console.warn('Confirm estimated record failed:', e.message);
+          }
         }
       } catch (error) {
         console.error('Cron scrape failed:', error);
+      }
+    });
+
+    // Schedule gap fill pass shortly after each hour on weekdays
+    cron.schedule('7 * * * 1-5', async () => {
+      try {
+        const { fillMissingWeekdays } = require('./services/historySync');
+        const result = await fillMissingWeekdays({ lookbackDays: 120 });
+        if (result.createdCount > 0) {
+          console.log(`Gap fill created ${result.createdCount} estimated entries`);
+        }
+      } catch (e) {
+        console.error('Gap fill cron failed:', e.message);
       }
     });
 
