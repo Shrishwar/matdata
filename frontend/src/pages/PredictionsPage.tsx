@@ -21,6 +21,9 @@ ChartJS.register(
   CategoryScale,
   LinearScale,
   BarElement,
+  LineElement,
+  PointElement,
+  ArcElement,
   Title,
   Tooltip,
   Legend
@@ -45,7 +48,9 @@ const PredictionsPage = () => {
   const fetchPredictions = async () => {
     try {
       setIsLoading(true);
+      console.log('Fetching predictions...');
       const response = await predictionApi.getPredictions();
+      console.log('Predictions response:', response);
       
       if (response.success) {
         setPredictions(response.data.predictions);
@@ -66,8 +71,10 @@ const PredictionsPage = () => {
   const fetchLiveData = async () => {
     try {
       setLiveLoading(true);
+      console.log('Fetching live data...');
       const response = await fetch('/api/results/fetch-latest');
       const data = await response.json();
+      console.log('Live data response:', data);
       
       if (data.ok) {
         setLiveData(data.latest);
@@ -84,10 +91,8 @@ const PredictionsPage = () => {
 
   useEffect(() => {
     fetchLiveData();
-    if (user) {
-      fetchPredictions();
-    }
-  }, [user]);
+    fetchPredictions();
+  }, []);
 
   // Auto-refresh every 5 minutes if data is loaded
   useEffect(() => {
@@ -111,11 +116,11 @@ const PredictionsPage = () => {
   // Prepare data for charts
   const frequencyChartData = useMemo(() => {
     if (!analysis?.frequency) return null;
-    
+
     const topNumbers = [...analysis.frequency]
       .sort((a, b) => b.frequency - a.frequency)
       .slice(0, 10);
-    
+
     return {
       labels: topNumbers.map(item => item.number.toString().padStart(2, '0')),
       datasets: [
@@ -171,73 +176,7 @@ const PredictionsPage = () => {
     if (!analysis?.markovMatrix?.steadyStateProbs) return [];
 
     return analysis.markovMatrix.steadyStateProbs
-      .map((prob: number, number: number) => ({ number, prob }))
-      .sort((a: any, b: any) => b.prob - a.prob)
-      .slice(0, 10);
-  }, [analysis]);
-
-  const ensembleTableData = predictionTable.slice(0, 10);
-
-  const formatNumber = (num: number) => {
-    return num.toString().padStart(2, '0');
-  };
-
-  return (
-    <div className="container mx-auto px-4 py-8">
-      <div className="bg-white rounded-lg shadow-md p-6">
-        <div className="flex justify-between items-center mb-6">
-          <h1 className="text-2xl font-bold text-gray-800">Next Number Predictions</h1>
-          <div className="flex space-x-2">
-            <button
-              onClick={() => setActiveTab('predictions')}
-              className={`px-4 py-2 rounded-md ${
-                activeTab === 'predictions'
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-  }, [analysis]);
-
-  const trendChartData = useMemo(() => {
-    if (!analysis?.trendAnalysis?.smoothedSeries) return null;
-
-    const smoothed = analysis.trendAnalysis.smoothedSeries.slice(-50); // Last 50 points
-    const labels = smoothed.map((_: number, i: number) => i.toString());
-
-    return {
-      labels,
-      datasets: [
-        {
-          label: 'Smoothed Trend',
-          data: smoothed,
-          borderColor: 'rgba(59, 130, 246, 1)',
-          backgroundColor: 'rgba(59, 130, 246, 0.1)',
-          fill: true,
-        },
-      ],
-    };
-  }, [analysis]);
-
-  const autocorrelationChartData = useMemo(() => {
-    if (!analysis?.autocorrelation?.graphData) return null;
-
-    return {
-      labels: analysis.autocorrelation.graphData.x.map((x: number) => x.toString()),
-      datasets: [
-        {
-          label: 'Autocorrelation',
-          data: analysis.autocorrelation.graphData.y,
-          borderColor: 'rgba(16, 185, 129, 1)',
-          backgroundColor: 'rgba(16, 185, 129, 0.1)',
-          fill: false,
-        },
-      ],
-    };
-  }, [analysis]);
-
-  const markovTableData = useMemo(() => {
-    if (!analysis?.markovMatrix?.steadyStateProbs) return [];
-
-    return analysis.markovMatrix.steadyStateProbs
-      .map((prob: number, number: number) => ({ number, prob }))
+      .map((prob: number, index: number) => ({ number: index, prob }))
       .sort((a: any, b: any) => b.prob - a.prob)
       .slice(0, 10);
   }, [analysis]);
@@ -305,6 +244,24 @@ const PredictionsPage = () => {
           </p>
         )}
 
+        {liveData && !liveLoading && (
+      <div className="mb-6 bg-green-50 border-l-4 border-green-400 p-4">
+        <div className="flex">
+          <div className="flex-shrink-0">
+            <svg className="h-5 w-5 text-green-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+              <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+            </svg>
+          </div>
+          <div className="ml-3">
+            <p className="text-sm text-green-700">
+              Latest DPBoss Result: <span className="font-medium">{liveData.middle ? liveData.middle : 'N/A'}</span>
+              {liveData.date && <span className="ml-2">on {new Date(liveData.date).toLocaleDateString()}</span>}
+            </p>
+          </div>
+        </div>
+      </div>
+        )}
+
         {activeTab === 'predictions' ? (
           <>
             {isLoading && predictions.length === 0 ? (
@@ -315,7 +272,7 @@ const PredictionsPage = () => {
               <div className="space-y-8">
                 <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
                   {predictions.map((prediction, index) => (
-                    <div 
+                    <div
                       key={prediction.number}
                       className="bg-white rounded-lg border border-gray-200 overflow-hidden shadow-sm hover:shadow-md transition-transform transform hover:-translate-y-1"
                     >
@@ -417,8 +374,7 @@ const PredictionsPage = () => {
                   Most frequently occurring number sequences
                 </p>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {/* @ts-ignore */}
-                  {analysis.patterns.slice(0, 6).map(([pattern, count], index) => (
+                  {analysis.patterns.slice(0, 6).map(([pattern, count]: [string, number], index: number) => (
                     <div key={index} className="bg-gray-50 p-3 rounded-md">
                       <div className="flex items-center justify-between">
                         <div className="flex space-x-2">
@@ -559,7 +515,7 @@ const PredictionsPage = () => {
                       </tr>
                     </thead>
                     <tbody>
-                      {markovTableData.map((item) => (
+                      {markovTableData.map((item: any) => (
                         <tr key={item.number} className="border-t">
                           <td className="px-4 py-2 text-sm">{formatNumber(item.number)}</td>
                           <td className="px-4 py-2 text-sm">{(item.prob * 100).toFixed(2)}%</td>
@@ -578,7 +534,7 @@ const PredictionsPage = () => {
                   Most frequent digit pairs (tens and units)
                 </p>
                 <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                  {analysis.digitCorrelation.frequentPairs.slice(0, 8).map((pair, index) => (
+                  {analysis.digitCorrelation.frequentPairs.slice(0, 8).map((pair: any, index: number) => (
                     <div key={index} className="bg-gray-50 p-3 rounded-md">
                       <div className="text-center">
                         <div className="text-lg font-medium">{pair.tens}{pair.units}</div>
@@ -605,7 +561,7 @@ const PredictionsPage = () => {
                       </tr>
                     </thead>
                     <tbody>
-                      {Array.from(analysis.mlClassifier.probs.entries())
+                      {Array.from((analysis.mlClassifier.probs as Map<number, number>).entries())
                         .sort((a, b) => b[1] - a[1])
                         .slice(0, 10)
                         .map(([number, prob]) => (
@@ -635,7 +591,7 @@ const PredictionsPage = () => {
                       </tr>
                     </thead>
                     <tbody>
-                      {Array.from(analysis.monteCarlo.occurrence.entries())
+                      {Array.from((analysis.monteCarlo.occurrence as Map<number, number>).entries())
                         .sort((a, b) => b[1] - a[1])
                         .slice(0, 10)
                         .map(([number, occur]) => (
@@ -698,12 +654,11 @@ const PredictionsPage = () => {
                 <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
               </svg>
             </div>
-            <div className="ml-3">
-              <p className="text-sm text-blue-700">
-                These predictions are based on advanced statistical analysis of historical data. 
-                They are for entertainment purposes only and do not guarantee future results.
-              </p>
-            </div>
+        <div className="ml-3">
+          {/* Disclaimer removed as per user request */}
+          {/* These predictions are based on advanced statistical analysis of historical data.
+            They are for entertainment purposes only and do not guarantee future results. */}
+        </div>
           </div>
         </div>
       </div>

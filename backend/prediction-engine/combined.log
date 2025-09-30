@@ -88,3 +88,11 @@
 {"level":"debug","message":"Stats - Mean: 46.06, Std: 27.65, Min: 1, Max: 99, Count: 50","service":"matka-prediction-engine","timestamp":"2025-09-28 21:30:39"}
 {"level":"debug","message":"Found 32 frequency components","service":"matka-prediction-engine","timestamp":"2025-09-28 21:30:39"}
 {"level":"debug","message":"Cluster sizes: 15, 19, 16","service":"matka-prediction-engine","timestamp":"2025-09-28 21:30:39"}
+{"level":"info","message":"Starting DP Matka Prediction Engine...","service":"matka-prediction-engine","timestamp":"2025-09-30 00:58:34"}
+{"level":"info","message":"Loading historical data...","service":"matka-prediction-engine","timestamp":"2025-09-30 00:58:34"}
+{"level":"info","message":"Loading historical Double data from MongoDB...","service":"matka-prediction-engine","timestamp":"2025-09-30 00:58:34"}
+{"level":"info","message":"Successfully connected to MongoDB","service":"matka-prediction-engine","timestamp":"2025-09-30 00:58:36"}
+{"level":"info","message":"Starting DP Matka Prediction Engine...","service":"matka-prediction-engine","timestamp":"2025-09-30 00:58:48"}
+{"level":"info","message":"Loading historical data...","service":"matka-prediction-engine","timestamp":"2025-09-30 00:58:48"}
+{"level":"info","message":"Loading historical Double data from MongoDB...","service":"matka-prediction-engine","timestamp":"2025-09-30 00:58:48"}
+{"level":"info","message":"Successfully connected to MongoDB","service":"matka-prediction-engine","timestamp":"2025-09-30 00:58:49"}

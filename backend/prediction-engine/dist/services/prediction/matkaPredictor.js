@@ -1,5 +1,7 @@
 import { logger } from '../../utils/logger.js';
-import * as math from 'mathjs';
+import { create, all } from 'mathjs';
+const mathjs = create(all);
+mathjs.config({ number: 'BigNumber' });
 import { mongoService } from '../database/mongoService.js';
 // Constants
 const Constants = {
@@ -94,25 +96,8 @@ class MatkaPredictor {
             // Fetch data from MongoDB
             const dbData = await mongoService.getHistoricalData(days);
             if (dbData.length === 0) {
-                logger.warn('No historical data found in database. Generating sample data...');
-                // Generate sample data if no historical data is available
-                const sampleData = [];
-                const now = new Date();
-                for (let i = 0; i < 50; i++) {
-                    const timestamp = new Date(now.getTime() - (i * 24 * 60 * 60 * 1000));
-                    const number = Math.floor(Math.random() * 100);
-                    sampleData.push({
-                        number,
-                        date: timestamp,
-                        timestamp: timestamp,
-                        gameType: 'SINGLE',
-                        openClose: Math.random() > 0.5 ? 'OPEN' : 'CLOSE',
-                        tens: Math.floor(number / 10),
-                        units: number % 10
-                    });
-                }
-                logger.info(`Generated ${sampleData.length} sample records`);
-                this.historicalData = sampleData;
+                logger.warn('No historical data found in database. Predictions require real historical data from DPBoss.');
+                throw new Error('No historical data available. Please run the scraper to populate the database with DPBoss data.');
             }
             else {
                 // Transform database data to match HistoricalData type
@@ -235,7 +220,7 @@ class MatkaPredictor {
         const mean = df;
         const std = Math.sqrt(2 * df);
         const z = (x - mean) / std;
-        return 0.5 * (1 + math.erf(z / Math.sqrt(2)));
+        return 0.5 * (1 + mathjs.erf(z / Math.sqrt(2)));
     }
     /**
      * Perform autocorrelation analysis
@@ -330,7 +315,7 @@ class MatkaPredictor {
      */
     performRunsTest() {
         const numbers = this.historicalData.map(d => d.number);
-        const median = math.median(numbers);
+        const median = mathjs.median(numbers);
         const runs = numbers.map(n => n > median ? 1 : 0);
         let runCount = 1;
         for (let i = 1; i < runs.length; i++) {
@@ -355,7 +340,7 @@ class MatkaPredictor {
      * Normal CDF approximation
      */
     normalCDF(x) {
-        return 0.5 * (1 + math.erf(x / Math.sqrt(2)));
+        return 0.5 * (1 + mathjs.erf(x / Math.sqrt(2)));
     }
     /**
      * Perform trend analysis (EMA and Exponential Smoothing)
@@ -507,15 +492,16 @@ class MatkaPredictor {
      */
     performMonteCarloSimulation() {
         const { firstOrder } = this.results.markovMatrix;
-        // Set seed for reproducibility
-        math.config({ randomSeed: Constants.RANDOM_SEED.toString() });
+        // Create local math instance for random seed config
+        const localMath = create(all);
+        localMath.config({ randomSeed: Constants.RANDOM_SEED.toString() });
         const nSims = 10000;
         const occurrence = new Map();
         for (let sim = 0; sim < nSims; sim++) {
             let current = this.historicalData[this.historicalData.length - 1].number;
             for (let step = 0; step < 5; step++) { // Simulate 5 steps
                 const probs = firstOrder[current];
-                let rand = math.random();
+                let rand = localMath.random();
                 let next = 0;
                 for (let i = 0; i < 100; i++) {
                     rand -= probs[i];
@@ -642,8 +628,8 @@ class MatkaPredictor {
             const sortedByDate = [...this.historicalData].sort((a, b) => (a.date?.getTime() || 0) - (b.date?.getTime() || 0));
             // Calculate and log basic statistics
             const stats = {
-                mean: numbers.length > 0 ? Number(math.mean(numbers)) : 0,
-                std: numbers.length > 1 ? Number(math.std(numbers, 'uncorrected')) : 1,
+                mean: numbers.length > 0 ? Number(mathjs.mean(numbers)) : 0,
+                std: numbers.length > 1 ? Number(mathjs.std(numbers, 'uncorrected')) : 1,
                 min: numbers.length > 0 ? Math.min(...numbers) : 0,
                 max: numbers.length > 0 ? Math.max(...numbers) : 0,
                 count: numbers.length
@@ -685,14 +671,44 @@ class MatkaPredictor {
             // Update results with latest analysis
             this.results.spectralAnalysis = spectralAnalysis;
             this.results.finalPredictions = predictions;
-            this.results.modelMetrics = {
-                accuracy: Math.random(),
-                precision: Math.random(),
-                recall: Math.random(),
-                f1Score: Math.random(),
-                confusionMatrix: [[0, 0], [0, 0]],
-                lastUpdated: new Date().toISOString()
-            };
+            // Compute real model metrics via simple backtest if enough data
+            let modelMetrics = undefined;
+            if (this.historicalData.length >= 50) {
+                let hitCount = 0;
+                const testSize = 10;
+                for (let i = this.historicalData.length - testSize; i < this.historicalData.length; i++) {
+                    // Simulate prior data up to i-1
+                    const priorData = this.historicalData.slice(0, i);
+                    const freqMap = new Map();
+                    priorData.forEach(d => {
+                        freqMap.set(d.number, (freqMap.get(d.number) || 0) + 1);
+                    });
+                    const sortedPrior = Array.from(freqMap.entries())
+                        .sort((a, b) => b[1] - a[1])
+                        .slice(0, 10)
+                        .map(([num]) => num);
+                    if (sortedPrior.includes(this.historicalData[i].number)) {
+                        hitCount++;
+                    }
+                }
+                const accuracy = (hitCount / testSize) * 100;
+                const precision = accuracy; // Simplified
+                const recall = accuracy;
+                const f1Score = accuracy > 0 ? 2 * accuracy / (precision + recall) : 0;
+                modelMetrics = {
+                    accuracy,
+                    precision,
+                    recall,
+                    f1Score,
+                    confusionMatrix: [[hitCount, testSize - hitCount], [0, 0]], // Simplified
+                    lastUpdated: new Date().toISOString()
+                };
+                logger.info(`Backtest accuracy: ${accuracy.toFixed(2)}% on ${testSize} samples`);
+            }
+            else {
+                logger.warn(`Insufficient data (${this.historicalData.length} records) for backtest metrics`);
+            }
+            this.results.modelMetrics = modelMetrics;
             // Prepare data range info
             const dataRange = sortedByDate.length > 0 ? {
                 startDate: sortedByDate[0].date,

@@ -68,6 +68,7 @@ api.interceptors.response.use(
 interface ApiResponse<T> {
   success: boolean;
   data: T;
+  status?: number;
 }
 
 interface Prediction {
@@ -199,68 +200,86 @@ export const predictionApi = {
         params: { limit },
         timeout: 60000, // 1 minute timeout for predictions
       });
-      return { data: response.data, status: response.status };
+      return { success: response.data.success, data: response.data.data, status: response.status };
     } catch (error) {
       console.error('Error fetching predictions:', error);
       throw error;
     }
   },
-  
+
+  // Get live predictions based on DPBoss live chart data
+  getLivePredictions: async (limit: number = 5): Promise<ApiResponse<{
+    predictions: Prediction[];
+    analysis: Partial<AnalysisResults>;
+    provenance: any;
+  }>> => {
+    try {
+      const response = await api.get('/api/predictions/live', {
+        params: { limit },
+        timeout: 60000,
+      });
+      return { success: response.data.success, data: response.data, status: response.status };
+    } catch (error) {
+      console.error('Error fetching live predictions:', error);
+      throw error;
+    }
+  },
+
   // Get detailed analysis (admin only)
   getAnalysis: async (timeRange: 'day' | 'week' | 'month' = 'day'): Promise<ApiResponse<any>> => {
     try {
       const response = await api.get('/api/predictions/analysis', {
         params: { range: timeRange },
       });
-      return { data: response.data, status: response.status };
+      return { success: response.data.success, data: response.data.data, status: response.status };
     } catch (error) {
       console.error('Error fetching analysis:', error);
       throw error;
     }
   },
-  
+
   // Get historical predictions accuracy
   getAccuracy: async (days: number = 30): Promise<ApiResponse<any>> => {
     try {
       const response = await api.get('/api/predictions/accuracy', {
         params: { days },
       });
-      return { data: response.data, status: response.status };
+      return { success: response.data.success, data: response.data.data, status: response.status };
     } catch (error) {
       console.error('Error fetching accuracy data:', error);
       throw error;
     }
   },
-  
+
   // Get pattern analysis
   getPatterns: async (patternLength: number = 3): Promise<ApiResponse<any>> => {
     try {
       const response = await api.get('/api/predictions/patterns', {
         params: { length: patternLength },
       });
-      return { data: response.data, status: response.status };
+      return { success: response.data.success, data: response.data.data, status: response.status };
     } catch (error) {
       console.error('Error fetching pattern analysis:', error);
       throw error;
     }
   },
-  
+
   // Get spectral analysis
   getSpectralAnalysis: async (): Promise<ApiResponse<any>> => {
     try {
       const response = await api.get('/api/predictions/spectral');
-      return { data: response.data, status: response.status };
+      return { success: response.data.success, data: response.data.data, status: response.status };
     } catch (error) {
       console.error('Error fetching spectral analysis:', error);
       throw error;
     }
   },
-  
+
   // Get model performance metrics
   getModelMetrics: async (): Promise<ApiResponse<any>> => {
     try {
       const response = await api.get('/api/predictions/metrics');
-      return { data: response.data, status: response.status };
+      return { success: response.data.success, data: response.data.data, status: response.status };
     } catch (error) {
       console.error('Error fetching model metrics:', error);
       throw error;
@@ -273,7 +292,7 @@ export const resultsAPI = {
   getFuture: async (): Promise<ApiResponse<any>> => {
     try {
       const response = await api.get('/api/results/future');
-      return { data: response.data, status: response.status };
+      return { success: response.data.success, data: response.data.data, status: response.status };
     } catch (error) {
       console.error('Error fetching future results:', error);
       throw error;
@@ -286,7 +305,7 @@ export const resultsAPI = {
       const response = await api.get('/api/results/guess', {
         params: { useLatest: forcePredict },
       });
-      return { data: response.data, status: response.status };
+      return { success: response.data.success, data: response.data.data, status: response.status };
     } catch (error) {
       console.error('Error fetching guesses:', error);
       throw error;
@@ -297,7 +316,7 @@ export const resultsAPI = {
   fetchLatest: async (): Promise<ApiResponse<any>> => {
     try {
       const response = await api.get('/api/results/fetch-latest');
-      return { data: response.data, status: response.status };
+      return { success: response.data.success, data: response.data.data, status: response.status };
     } catch (error) {
       console.error('Error fetching latest result:', error);
       throw error;
@@ -343,7 +362,7 @@ export const resultsAPI = {
       const response = await api.get('/api/results/history', {
         params: { limit },
       });
-      return { data: response.data, status: response.status };
+      return { success: response.data.success, data: response.data.data, status: response.status };
     } catch (error) {
       console.error('Error fetching history:', error);
       throw error;

@@ -1,5 +1,7 @@
 import { logger } from '../../utils/logger.js';
-import * as math from 'mathjs';
+import { create, all } from 'mathjs';
+const mathjs = create(all);
+mathjs.config({ number: 'BigNumber' });
 import { mongoService } from '../database/mongoService.js';
 
 // Types
@@ -330,7 +332,7 @@ class MatkaPredictor {
     const mean = df;
     const std = Math.sqrt(2 * df);
     const z = (x - mean) / std;
-    return 0.5 * (1 + math.erf(z / Math.sqrt(2)));
+    return 0.5 * (1 + mathjs.erf(z / Math.sqrt(2)));
   }
 
   /**
@@ -441,7 +443,7 @@ class MatkaPredictor {
    */
   private performRunsTest(): void {
     const numbers = this.historicalData.map(d => d.number);
-    const median = math.median(numbers);
+    const median = mathjs.median(numbers);
     const runs = numbers.map(n => n > median ? 1 : 0);
 
     let runCount = 1;
@@ -469,7 +471,7 @@ class MatkaPredictor {
    * Normal CDF approximation
    */
   private normalCDF(x: number): number {
-    return 0.5 * (1 + math.erf(x / Math.sqrt(2)));
+    return 0.5 * (1 + mathjs.erf(x / Math.sqrt(2)));
   }
 
   /**
@@ -645,10 +647,9 @@ class MatkaPredictor {
   private performMonteCarloSimulation(): void {
     const { firstOrder } = this.results.markovMatrix;
 
-    // Create local math instance for config
-    const { create, all } = require('mathjs');
-    const math = create(all);
-    math.config({ randomSeed: Constants.RANDOM_SEED.toString() });
+    // Create local math instance for random seed config
+    const localMath = create(all);
+    localMath.config({ randomSeed: Constants.RANDOM_SEED.toString() });
 
     const nSims = 10000;
     const occurrence = new Map<number, number>();
@@ -657,7 +658,7 @@ class MatkaPredictor {
       let current = this.historicalData[this.historicalData.length - 1].number;
       for (let step = 0; step < 5; step++) { // Simulate 5 steps
         const probs = firstOrder[current];
-        let rand = math.random();
+        let rand = localMath.random();
         let next = 0;
         for (let i = 0; i < 100; i++) {
           rand -= probs[i];
@@ -828,8 +829,8 @@ class MatkaPredictor {
       
       // Calculate and log basic statistics
       const stats = {
-        mean: numbers.length > 0 ? Number(math.mean(numbers)) : 0,
-        std: numbers.length > 1 ? Number(math.std(numbers, 'uncorrected')) : 1,
+        mean: numbers.length > 0 ? Number(mathjs.mean(numbers)) : 0,
+        std: numbers.length > 1 ? Number(mathjs.std(numbers, 'uncorrected')) : 1,
         min: numbers.length > 0 ? Math.min(...numbers) : 0,
         max: numbers.length > 0 ? Math.max(...numbers) : 0,
         count: numbers.length

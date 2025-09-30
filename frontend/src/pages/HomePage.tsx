@@ -1,8 +1,8 @@
 import { useEffect, useState, useRef } from 'react';
 import { format, isToday, isYesterday } from 'date-fns';
-import { resultsAPI } from '../services/api';
+import { resultsAPI, predictionApi } from '../services/api';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-import { ArrowPathIcon, CheckCircleIcon, WifiIcon, ExclamationTriangleIcon } from '@heroicons/react/24/outline';
+import { ArrowPathIcon, CheckCircleIcon, WifiIcon, ExclamationTriangleIcon, SparklesIcon } from '@heroicons/react/24/outline';
 
 type Guess = {
   double: string;
@@ -35,6 +35,9 @@ const HomePage = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isConnected, setIsConnected] = useState(false);
+  const [livePredictions, setLivePredictions] = useState<any[]>([]);
+  const [livePredictionsLoading, setLivePredictionsLoading] = useState(false);
+  const [showLivePredictions, setShowLivePredictions] = useState(false);
   const sseCleanupRef = useRef<(() => void) | null>(null);
   const lastUpdateRef = useRef<Date | null>(null);
 
@@ -92,14 +95,14 @@ const fetchLatestAndPredict = async () => {
     setError(null);
     const latestRes = await resultsAPI.fetchLatest();
     console.log('Latest API response:', latestRes.data); // Log full response for validation
-    
+
     // Check if latest is live (today or yesterday for Friday results)
     const today = new Date();
     const yesterday = new Date(today);
     yesterday.setDate(yesterday.getDate() - 1);
     const latestDate = new Date(latestRes.data.date);
     const isLiveConfirmed = isToday(latestDate) || isYesterday(latestDate);
-    
+
     setLatest({ ...latestRes.data, isLiveConfirmed });
     const guessRes = await resultsAPI.getGuesses(true);
     console.log('Guesses API response:', guessRes.data); // Log full new response
@@ -114,6 +117,28 @@ const fetchLatestAndPredict = async () => {
     setError('Failed to fetch latest result. Please try again later.');
   } finally {
     setIsLoading(false);
+  }
+};
+
+const fetchLivePredictions = async () => {
+  try {
+    setLivePredictionsLoading(true);
+    setError(null);
+    console.log('Fetching live predictions...');
+    const response = await predictionApi.getLivePredictions();
+    console.log('Live predictions response:', response);
+
+    if (response.success) {
+      setLivePredictions(response.data.predictions || []);
+      setShowLivePredictions(true);
+    } else {
+      setError('Failed to fetch live predictions');
+    }
+  } catch (err) {
+    console.error('Failed to fetch live predictions:', err);
+    setError('Failed to fetch live predictions. Please try again later.');
+  } finally {
+    setLivePredictionsLoading(false);
   }
 };
 
@@ -166,6 +191,14 @@ const fetchLatestAndPredict = async () => {
           >
             <ArrowPathIcon className={`h-4 w-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
             Fetch Today's Panel & Predict
+          </button>
+          <button
+            onClick={fetchLivePredictions}
+            disabled={livePredictionsLoading}
+            className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-purple-600 hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 disabled:opacity-50"
+          >
+            <SparklesIcon className={`h-4 w-4 mr-2 ${livePredictionsLoading ? 'animate-spin' : ''}`} />
+            Next Number Prediction
           </button>
         </div>
       </div>

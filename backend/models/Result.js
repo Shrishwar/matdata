@@ -48,6 +48,26 @@ const resultSchema = new mongoose.Schema({
       message: props => `${props.value} is not a valid 2-digit number!`
     }
   },
+  openSum: {
+    type: Number,
+    required: true,
+    validate: {
+      validator: function(v) {
+        return v >= 0 && v <= 27; // Sum of 3 digits 0-9
+      },
+      message: props => `${props.value} is not a valid digit sum!`
+    }
+  },
+  closeSum: {
+    type: Number,
+    required: true,
+    validate: {
+      validator: function(v) {
+        return v >= 0 && v <= 27; // Sum of 3 digits 0-9
+      },
+      message: props => `${props.value} is not a valid digit sum!`
+    }
+  },
   finalNumber: {
     type: String,
     validate: {
@@ -67,14 +87,7 @@ const resultSchema = new mongoose.Schema({
   }
 }, { timestamps: true });
 
-// Virtuals for calculated fields
-resultSchema.virtual('openSum').get(function() {
-  return this.open3 ? this.open3.split('').reduce((sum, digit) => sum + parseInt(digit, 10), 0) : 0;
-});
-
-resultSchema.virtual('closeSum').get(function() {
-  return this.close3 ? this.close3.split('').reduce((sum, digit) => sum + parseInt(digit, 10), 0) : 0;
-});
+// Virtuals for calculated fields (openSum and closeSum are now stored fields)
 
 resultSchema.virtual('openTens').get(function() {
   return this.open3 ? parseInt(this.open3[0], 10) : 0;
