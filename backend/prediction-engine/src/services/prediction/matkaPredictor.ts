@@ -1,7 +1,6 @@
 import { logger } from '../../utils/logger.js';
 import { create, all } from 'mathjs';
 const mathjs = create(all);
-mathjs.config({ number: 'BigNumber' });
 import { mongoService } from '../database/mongoService.js';
 
 // Types

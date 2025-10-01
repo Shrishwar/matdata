@@ -66,6 +66,10 @@ async function scrapeHistory() {
 
     const $ = await scrapePage(SCRAPE_URL);
 
+    // Log raw HTML for debugging
+    const rawHtml = $.html();
+    console.log('Raw HTML length:', rawHtml.length);
+
     const table = $('table').first();
     if (table.length === 0) {
       throw new Error('No table found on the page');
@@ -142,51 +146,55 @@ async function scrapeHistory() {
         const close3 = $(tds[closeIdx]).text().trim();
         const double = middle;
 
-        console.log(`Row ${rowIndex} Day ${dayOffset + 1}: date=${dayDate.toISOString().split('T')[0]}, open3=${open3}, middle=${middle}, close3=${close3}, double=${double}`);
+        console.log(`Row ${rowIndex} Day ${dayOffset + 1}: date=${dayDate.toISOString().split('T')[0]}, open3='${open3}' (len:${open3.length}), middle='${middle}' (len:${middle.length}), close3='${close3}' (len:${close3.length}), double='${double}' (len:${double.length})`);
 
         if (/^\d{3}$/.test(open3) && /^\d{2}$/.test(middle) && /^\d{3}$/.test(close3) && /^\d{2}$/.test(double)) {
-        const openSum = open3.split('').reduce((sum, digit) => sum + parseInt(digit, 10), 0);
-        const closeSum = close3.split('').reduce((sum, digit) => sum + parseInt(digit, 10), 0);
+          const open3d = open3;
+          const close3d = close3;
+          const openSum = parseInt(open3d[0]) + parseInt(open3d[1]) + parseInt(open3d[2]);
+          const closeSum = parseInt(close3d[0]) + parseInt(close3d[1]) + parseInt(close3d[2]);
+          const drawId = `${dayDate.toISOString().split('T')[0]}-${parseInt(double)}`;
+          const datetime = dayDate;
+          const rawSource = $(row).html();
+          const sourceUrl = SCRAPE_URL;
+          const fetchedAt = new Date();
 
-        const result = {
-          date: dayDate,
-          open3,
-          middle,
-          close3,
-          double,
-          openSum,
-          closeSum,
-          finalNumber: null,
-          source: 'dpboss',
-          scrapedAt: new Date()
-        };
+          const result = {
+            drawId,
+            datetime,
+            date: dayDate,
+            open3d,
+            close3d,
+            middle,
+            double,
+            openSum,
+            closeSum,
+            rawSource,
+            sourceUrl,
+            fetchedAt
+          };
           results.push(result);
 
-          // Upsert to DB
-          const startOfDay = new Date(dayDate);
-          startOfDay.setHours(0, 0, 0, 0);
-          const endOfDay = new Date(dayDate);
-          endOfDay.setHours(23, 59, 59, 999);
-
+          // Upsert to DB by drawId
           let retryCount = 0;
           const maxRetries = 3;
           while (retryCount < maxRetries) {
             try {
               await Result.findOneAndUpdate(
-                { date: { $gte: startOfDay, $lt: endOfDay } },
+                { drawId },
                 result,
                 { upsert: true, new: true, setDefaultsOnInsert: true }
               );
-              console.log(`Saved/Updated ${dayDate.toISOString().split('T')[0]}`);
+              console.log(`Saved/Updated ${drawId}`);
               break; // Success, exit retry loop
             } catch (err) {
               retryCount++;
-              console.error(`Error saving ${dayDate.toISOString().split('T')[0]} (attempt ${retryCount}/${maxRetries}):`, err.message);
+              console.error(`Error saving ${drawId} (attempt ${retryCount}/${maxRetries}):`, err.message);
               if (retryCount < maxRetries) {
                 // Wait longer between retries
                 await new Promise(resolve => setTimeout(resolve, 1000 * retryCount));
               } else {
-                console.error(`Failed to save ${dayDate.toISOString().split('T')[0]} after ${maxRetries} attempts`);
+                console.error(`Failed to save ${drawId} after ${maxRetries} attempts`);
               }
             }
           }
@@ -219,7 +227,7 @@ async function getLiveExtracted() {
 
       // Run Python script to fetch live data
       const pythonScriptPath = path.resolve(__dirname, 'fetch_live_data.py');
-      const pythonExecutable = 'python'; // or full path to python executable if needed
+      const pythonExecutable = 'python3'; // or full path to python executable if needed
 
       const liveData = await new Promise((resolve, reject) => {
         execFile(pythonExecutable, [pythonScriptPath], (error, stdout, stderr) => {
@@ -236,43 +244,33 @@ async function getLiveExtracted() {
         });
       });
 
-      if (!liveData || !liveData.date) {
+      if (!liveData || liveData.error) {
+        throw new Error(`Python script error: ${liveData.error}`);
+      }
+
+      if (!liveData.drawId) {
         throw new Error('Invalid live data from Python script');
       }
 
       // Validate and process liveData fields
-      const date = new Date(liveData.date);
-      if (isNaN(date.getTime())) {
-        throw new Error(`Invalid date from live data: ${liveData.date}`);
+      const datetime = new Date(liveData.datetime);
+      if (isNaN(datetime.getTime())) {
+        throw new Error(`Invalid datetime from live data: ${liveData.datetime}`);
       }
 
-      const open3 = liveData.open3;
-      const middle = liveData.middle;
-      const close3 = liveData.close3;
-      const double = middle;
+      const result = {
+        drawId: liveData.drawId,
+        datetime,
+        number: liveData.number,
+        tens: liveData.tens,
+        units: liveData.units,
+        rawSource: liveData.rawSource,
+        sourceUrl: liveData.sourceUrl,
+        fetchedAt: new Date(liveData.fetchedAt)
+      };
 
-      if (/^\d{3}$/.test(open3) && /^\d{2}$/.test(middle) && /^\d{3}$/.test(close3) && /^\d{2}$/.test(double)) {
-        const openSum = open3.split('').reduce((sum, digit) => sum + parseInt(digit, 10), 0);
-        const closeSum = close3.split('').reduce((sum, digit) => sum + parseInt(digit, 10), 0);
-
-        const result = {
-          date,
-          open3,
-          middle,
-          close3,
-          double,
-          openSum,
-          closeSum,
-          finalNumber: null,
-          source: 'dpboss',
-          scrapedAt: new Date()
-        };
-
-        console.log('Live result extracted from Python script:', result);
-        return result;
-      } else {
-        throw new Error(`Invalid data in live data from Python script`);
-      }
+      console.log('Live result extracted from Python script:', result);
+      return result;
     } catch (error) {
       lastError = error;
       console.error(`Live extraction attempt ${attempt} failed:`, error.message);
@@ -295,6 +293,10 @@ async function scrapeLatest() {
     try {
       console.log(`Starting scrape for latest Main Bazar result... (attempt ${attempt}/${maxRetries})`);
       const $ = await scrapePage(SCRAPE_URL);
+
+      // Log raw HTML
+      const rawHtml = $.html();
+      console.log('Raw HTML length:', rawHtml.length);
 
       const table = $('table').first();
       if (table.length === 0) {
@@ -352,29 +354,33 @@ async function scrapeLatest() {
       const double = middle;
 
       if (/^\d{3}$/.test(open3) && /^\d{2}$/.test(middle) && /^\d{3}$/.test(close3) && /^\d{2}$/.test(double)) {
-        const openSum = open3.split('').reduce((sum, digit) => sum + parseInt(digit, 10), 0);
-        const closeSum = close3.split('').reduce((sum, digit) => sum + parseInt(digit, 10), 0);
+        const open3d = open3;
+        const close3d = close3;
+        const openSum = parseInt(open3d[0]) + parseInt(open3d[1]) + parseInt(open3d[2]);
+        const closeSum = parseInt(close3d[0]) + parseInt(close3d[1]) + parseInt(close3d[2]);
+        const drawId = `${date.toISOString().split('T')[0]}-${parseInt(double)}`;
+        const datetime = date;
+        const rawSource = $(lastRow).html();
+        const sourceUrl = SCRAPE_URL;
+        const fetchedAt = new Date();
 
         const result = {
+          drawId,
+          datetime,
           date,
-          open3,
+          open3d,
+          close3d,
           middle,
-          close3,
           double,
           openSum,
           closeSum,
-          finalNumber: null,
-          source: 'dpboss',
-          scrapedAt: new Date()
+          rawSource,
+          sourceUrl,
+          fetchedAt
         };
 
-        const startOfDay = new Date(result.date);
-        startOfDay.setHours(0, 0, 0, 0);
-        const endOfDay = new Date(result.date);
-        endOfDay.setHours(23, 59, 59, 999);
-
         const savedResult = await Result.findOneAndUpdate(
-          { date: { $gte: startOfDay, $lt: endOfDay } },
+          { drawId },
           result,
           { upsert: true, new: true }
         );
@@ -417,22 +423,18 @@ async function bulkScrape(days = 90) {
     }
 
     try {
-      // Check if already exists
+      // Check if already exists by drawId pattern
+      const dateStr = currentDate.toISOString().split('T')[0];
       const existing = await Result.findOne({
-        date: {
-          $gte: new Date(currentDate.getFullYear(), currentDate.getMonth(), currentDate.getDate()),
-          $lt: new Date(currentDate.getFullYear(), currentDate.getMonth(), currentDate.getDate() + 1)
-        }
+        drawId: { $regex: `^${dateStr}-` }
       });
 
       if (!existing) {
-        // Scrape and save
-        const $ = await scrapePage(SCRAPE_URL);
-        // Extract for this date - simplified, assume latest is current
+        // Scrape and save - simplified, use getLiveExtracted for now
         const result = await getLiveExtracted();
-        if (result && result.date.toDateString() === currentDate.toDateString()) {
+        if (result && result.datetime.toDateString() === currentDate.toDateString()) {
           await Result.findOneAndUpdate(
-            { date: { $gte: new Date(result.date.getFullYear(), result.date.getMonth(), result.date.getDate()), $lt: new Date(result.date.getFullYear(), result.date.getMonth(), result.date.getDate() + 1) } },
+            { drawId: result.drawId },
             result,
             { upsert: true, new: true }
           );
@@ -457,44 +459,53 @@ async function bulkScrape(days = 90) {
 }
 
 async function uploadCsvFallback(csvData) {
-  // Parse CSV and save results
+  // Parse CSV and save results - assuming CSV has new format: drawId,datetime,number,tens,units,rawSource,sourceUrl,fetchedAt
   const lines = csvData.split('\n').filter(line => line.trim());
   let count = 0;
 
   for (const line of lines.slice(1)) { // Skip header
-    const [dateStr, open3, middle, close3, double] = line.split(',');
-    const date = new Date(dateStr);
+    const [drawId, datetimeStr, numberStr, tensStr, unitsStr, rawSource, sourceUrl, fetchedAtStr] = line.split(',');
+    const datetime = new Date(datetimeStr);
+    const number = parseInt(numberStr);
+    const tens = parseInt(tensStr);
+    const units = parseInt(unitsStr);
+    const fetchedAt = new Date(fetchedAtStr);
 
-    if (isNaN(date.getTime())) continue;
-
-    const openSum = open3.trim().split('').reduce((sum, digit) => sum + parseInt(digit, 10), 0);
-    const closeSum = close3.trim().split('').reduce((sum, digit) => sum + parseInt(digit, 10), 0);
+    if (isNaN(datetime.getTime()) || isNaN(number) || isNaN(tens) || isNaN(units)) continue;
 
     const result = {
-      date,
-      open3: open3.trim(),
-      middle: middle.trim(),
-      close3: close3.trim(),
-      double: double.trim(),
-      openSum,
-      closeSum,
-      finalNumber: null,
-      source: 'csv',
-      scrapedAt: new Date()
+      drawId: drawId.trim(),
+      datetime,
+      number,
+      tens,
+      units,
+      rawSource: rawSource.trim(),
+      sourceUrl: sourceUrl.trim(),
+      fetchedAt
     };
 
-    if (/^\d{3}$/.test(result.open3) && /^\d{2}$/.test(result.middle) && /^\d{3}$/.test(result.close3) && /^\d{2}$/.test(result.double)) {
-      await Result.findOneAndUpdate(
-        { date: { $gte: new Date(date.getFullYear(), date.getMonth(), date.getDate()), $lt: new Date(date.getFullYear(), date.getMonth(), date.getDate() + 1) } },
-        result,
-        { upsert: true, new: true }
-      );
-      count++;
-    }
+    await Result.findOneAndUpdate(
+      { drawId },
+      result,
+      { upsert: true, new: true }
+    );
+    count++;
   }
 
   console.log(`CSV upload completed, added ${count} results`);
   return count;
 }
 
-module.exports = { scrapeHistory, scrapeLatest, getLiveExtracted, bulkScrape, uploadCsvFallback };
+async function dpbossFetch() {
+  try {
+    console.log('Starting DPBoss fetch for latest result...');
+    const result = await scrapeLatest();
+    console.log('DPBoss fetch completed:', result ? result.drawId : 'No new result');
+    return result;
+  } catch (error) {
+    console.error('DPBoss fetch failed:', error.message);
+    throw error;
+  }
+}
+
+module.exports = { scrapeHistory, scrapeLatest, getLiveExtracted, bulkScrape, uploadCsvFallback, dpbossFetch };

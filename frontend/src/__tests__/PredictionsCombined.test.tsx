@@ -1,5 +1,7 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { vi } from 'vitest';
+import { MemoryRouter } from 'react-router-dom';
+import { AuthProvider } from '../context/AuthContext';
 import PredictionsPage from '../pages/PredictionsPage';
 
 vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ json: async () => ({ ok: true, latest: { date: new Date().toISOString(), middle: '45' } }) } as any));
@@ -14,18 +16,28 @@ vi.mock('../services/api', () => ({
   },
 }));
 
-describe('PredictionsPage Hybrid Combined', () => {
-  it('shows Hybrid Top 5 explanations', async () => {
-    render(<PredictionsPage />);
+const renderWithProviders = (component: React.ReactElement) => {
+  return render(
+    <MemoryRouter>
+      <AuthProvider>
+        {component}
+      </AuthProvider>
+    </MemoryRouter>
+  );
+};
 
-    const btn = await screen.findByText('Hybrid Top 5');
+describe('PredictionsPage Hybrid Combined', () => {
+  it('shows Hybrid Top 3 explanations', async () => {
+    renderWithProviders(<PredictionsPage />);
+
+    const btn = await screen.findByText('Hybrid Top 3');
     fireEvent.click(btn);
 
     await waitFor(() => {
-      expect(screen.getByText(/Hybrid Top 5/i)).toBeInTheDocument();
+      expect(screen.getByText(/Hybrid Top 3/i)).toBeInTheDocument();
     });
 
-    expect(screen.getByText('07')).toBeInTheDocument();
+    expect(screen.getAllByText('07')).toHaveLength(2); // One in predictions grid, one in hybrid section
     expect(screen.getByText('82%')).toBeInTheDocument();
   });
 });

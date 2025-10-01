@@ -55,18 +55,15 @@ router.get('/fetch-latest', async (req, res) => {
   try {
     const latest = await scrapeLatest();
     const liveScraped = await getLiveExtracted();
-    const liveMatch = latest.date.toDateString() === liveScraped.date.toDateString() &&
-                      latest.open3 === liveScraped.open3 &&
-                      latest.middle === liveScraped.middle &&
-                      latest.close3 === liveScraped.close3 &&
-                      latest.double === liveScraped.double;
+    const liveMatch = latest.datetime.toDateString() === liveScraped.datetime.toDateString() &&
+                      latest.number === liveScraped.number;
 
     let liveHtmlSnippet = '';
     if (!liveMatch) {
-      liveHtmlSnippet = `Date range row text: ${liveScraped.date} - Open: ${liveScraped.open3}, Middle: ${liveScraped.middle}, Close: ${liveScraped.close3}, Double: ${liveScraped.double}`;
+      liveHtmlSnippet = `Live scraped: ${liveScraped.datetime} - Number: ${liveScraped.number}`;
     }
 
-    res.json({ 
+    res.json({
       ok: true,
       latest: { ...latest.toObject(), liveMatch, liveHtmlSnippet },
       message: 'Latest result fetched successfully'
@@ -76,11 +73,11 @@ router.get('/fetch-latest', async (req, res) => {
     try {
       // Fallback: get the most recent result from DB
       const fallbackResult = await Result.findOne()
-        .sort({ date: -1 })
+        .sort({ datetime: -1 })
         .limit(1);
       if (fallbackResult) {
         console.log('Returning cached latest result from DB');
-        res.json({ 
+        res.json({
           ok: true,
           latest: { ...fallbackResult.toObject(), liveMatch: false, liveHtmlSnippet: 'Fallback from DB' },
           message: 'Using cached latest from DB'
@@ -345,14 +342,68 @@ router.get('/future', async (req, res) => {
   }
 });
 
-// @route   GET /api/results/history
+// @route   GET /api/history
 // @desc    Get past results from DB (latest 50)
 // @access  Public
-router.get('/history', async (req, res) => {
+router.get('/api/history', async (req, res) => {
   try {
     console.log('Fetching history from DB...');
     const yesterday = new Date();
     yesterday.setDate(yesterday.getDate() - 1);
+
+    // Check if external source has new data
+    let needsScrape = false;
+    try {
+      const latestScraped = await scrapeLatest();
+      const latestResult = await Result.findOne().sort({ date: -1 }).lean();
+
+      if (!latestResult) {
+        needsScrape = true;
+        console.log('No results found in DB, will scrape history');
+      } else {
+        const latestDbDate = new Date(latestResult.date);
+        const latestScrapedDate = new Date(latestScraped.date);
+
+        if (latestScrapedDate > latestDbDate) {
+          needsScrape = true;
+          console.log(`External source has newer data: ${latestScrapedDate.toISOString()} > ${latestDbDate.toISOString()}, will scrape history`);
+        }
+      }
+    } catch (scrapeError) {
+      console.error('Failed to check external source for updates:', scrapeError.message);
+      // Fallback to date-based check
+      const latestResult = await Result.findOne().sort({ date: -1 }).lean();
+      if (!latestResult) {
+        needsScrape = true;
+        console.log('No results found in DB, will scrape history');
+      } else {
+        const latestDate = new Date(latestResult.date);
+        latestDate.setHours(23, 59, 59, 999);
+        if (latestDate < yesterday) {
+          needsScrape = true;
+          console.log(`Latest result date ${latestDate.toISOString()} is older than yesterday ${yesterday.toISOString()}, will scrape history`);
+        }
+      }
+    }
+
+    if (needsScrape) {
+      try {
+        const scrapedCount = await scrapeHistory();
+        console.log(`Auto-scrape completed, added ${scrapedCount} results`);
+
+        // Fill missing weekdays with estimated data
+        const fillResult = await fillMissingWeekdays({ lookbackDays: 30 });
+        console.log(`Filled missing weekdays: created ${fillResult.createdCount}, missing ${fillResult.missingCount}`);
+
+      } catch (scrapeError) {
+        console.error('Auto-scrape failed:', scrapeError.message);
+        return res.status(500).json({
+          message: 'Failed to fetch history and auto-scrape failed',
+          error: scrapeError.message
+        });
+      }
+    }
+
     let results = await Result.aggregate([
       {
         $match: {
@@ -365,24 +416,70 @@ router.get('/history', async (req, res) => {
     ]);
 
     console.log(`Fetched ${results.length} history results from DB`);
-    if (results.length < 5) {
-      console.warn('Low history results found in DB, triggering auto-scrape...');
+
+    res.json({
+      history: results,
+      total: results.length
+    });
+  } catch (error) {
+    console.error('Error fetching history:', error);
+    res.status(500).json({ message: 'Server error fetching history', error: error.message });
+  }
+});
+
+// @route   GET /api/results/history
+// @desc    Get past results from DB (latest 50)
+// @access  Public
+router.get('/history', async (req, res) => {
+  try {
+    console.log('Fetching history from DB...');
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+
+    // Check if external source has new data
+    let needsScrape = false;
+    try {
+      const latestScraped = await scrapeLatest();
+      const latestResult = await Result.findOne().sort({ date: -1 }).lean();
+
+      if (!latestResult) {
+        needsScrape = true;
+        console.log('No results found in DB, will scrape history');
+      } else {
+        const latestDbDate = new Date(latestResult.date);
+        const latestScrapedDate = new Date(latestScraped.date);
+
+        if (latestScrapedDate > latestDbDate) {
+          needsScrape = true;
+          console.log(`External source has newer data: ${latestScrapedDate.toISOString()} > ${latestDbDate.toISOString()}, will scrape history`);
+        }
+      }
+    } catch (scrapeError) {
+      console.error('Failed to check external source for updates:', scrapeError.message);
+      // Fallback to date-based check
+      const latestResult = await Result.findOne().sort({ date: -1 }).lean();
+      if (!latestResult) {
+        needsScrape = true;
+        console.log('No results found in DB, will scrape history');
+      } else {
+        const latestDate = new Date(latestResult.date);
+        latestDate.setHours(23, 59, 59, 999);
+        if (latestDate < yesterday) {
+          needsScrape = true;
+          console.log(`Latest result date ${latestDate.toISOString()} is older than yesterday ${yesterday.toISOString()}, will scrape history`);
+        }
+      }
+    }
+
+    if (needsScrape) {
       try {
         const scrapedCount = await scrapeHistory();
         console.log(`Auto-scrape completed, added ${scrapedCount} results`);
-        // Refetch after scrape
-        const refetchedResults = await Result.aggregate([
-          {
-            $match: {
-              date: { $lt: yesterday },
-              $expr: { $not: { $in: [ { $dayOfWeek: "$date" }, [1, 7] ] } }
-            }
-          },
-          { $sort: { date: -1 } },
-          { $limit: 50 }
-        ]);
-        results = refetchedResults;
-        console.log(`Refetched ${results.length} history results after auto-scrape`);
+
+        // Fill missing weekdays with estimated data
+        const fillResult = await fillMissingWeekdays({ lookbackDays: 30 });
+        console.log(`Filled missing weekdays: created ${fillResult.createdCount}, missing ${fillResult.missingCount}`);
+
       } catch (scrapeError) {
         console.error('Auto-scrape failed:', scrapeError.message);
         return res.status(500).json({
@@ -391,6 +488,19 @@ router.get('/history', async (req, res) => {
         });
       }
     }
+
+    let results = await Result.aggregate([
+      {
+        $match: {
+          date: { $lt: yesterday },
+          $expr: { $not: { $in: [ { $dayOfWeek: "$date" }, [1, 7] ] } }  // Exclude Sunday (1) and Saturday (7)
+        }
+      },
+      { $sort: { date: -1 } },
+      { $limit: 50 }
+    ]);
+
+    console.log(`Fetched ${results.length} history results from DB`);
 
     res.json({
       history: results,
@@ -450,7 +560,7 @@ router.get('/guess', async (req, res) => {
     }
 
     // Get latest from DB
-    const latestDb = await Result.findOne().sort({ date: -1 }).limit(1);
+    const latestDb = await Result.findOne().sort({ datetime: -1 }).limit(1);
     if (!latestDb) {
       return res.status(404).json({ message: 'No data in DB' });
     }
@@ -459,17 +569,14 @@ router.get('/guess', async (req, res) => {
     const liveScraped = await getLiveExtracted();
 
     // Validate scraped vs live
-    const liveMatch = latestDb.date.toDateString() === liveScraped.date.toDateString() &&
-                      latestDb.open3 === liveScraped.open3 &&
-                      latestDb.middle === liveScraped.middle &&
-                      latestDb.close3 === liveScraped.close3 &&
-                      latestDb.double === liveScraped.double;
+    const liveMatch = latestDb.datetime.toDateString() === liveScraped.datetime.toDateString() &&
+                      latestDb.number === liveScraped.number;
 
     let liveHtmlSnippet = '';
     if (!liveMatch) {
       // To get HTML snippet, we'd need to return cheerio instance or re-scrape, but for simplicity, log and use text
       console.log('Live mismatch detected');
-      liveHtmlSnippet = `Date range row text: ${liveScraped.date} - Open: ${liveScraped.open3}, Middle: ${liveScraped.middle}, Close: ${liveScraped.close3}, Double: ${liveScraped.double}`;
+      liveHtmlSnippet = `Live scraped: ${liveScraped.datetime} - Number: ${liveScraped.number}`;
     }
 
     // Ensure analysis records are populated (simple check)
@@ -494,7 +601,7 @@ router.get('/guess', async (req, res) => {
     let backtestResults = null;
     if (backtestBool) {
       // Simple backtest using historical data
-      const history = await Result.find().sort({ date: -1 }).limit(numWeeks);
+      const history = await Result.find().sort({ datetime: -1 }).limit(numWeeks);
       if (history.length > 50) {
         backtestResults = {
           weeks: history.length,
@@ -615,9 +722,6 @@ router.get('/model-status', auth, admin, async (req, res) => {
   }
 });
 
-// @route   GET /api/results/stream/latest
-// @desc    SSE endpoint for real-time latest result updates
-// @access  Public
 router.get('/stream/latest', (req, res) => {
   res.writeHead(200, {
     'Content-Type': 'text/event-stream',
@@ -637,8 +741,14 @@ router.get('/stream/latest', (req, res) => {
 
   sseEmitter.on('latest-update', sendUpdate);
 
+  // Send periodic ping to keep connection alive
+  const pingInterval = setInterval(() => {
+    res.write(': ping\n\n');
+  }, 15000);
+
   // Handle client disconnect
   req.on('close', () => {
+    clearInterval(pingInterval);
     sseEmitter.off('latest-update', sendUpdate);
   });
 });

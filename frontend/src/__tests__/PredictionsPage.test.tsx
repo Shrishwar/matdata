@@ -1,5 +1,7 @@
 import { render, screen, waitFor, fireEvent } from '@testing-library/react';
-import { vi } from 'vitest';
+import { vi, describe, it, expect } from 'vitest';
+import { BrowserRouter } from 'react-router-dom';
+import { AuthProvider } from '../context/AuthContext';
 import PredictionsPage from '../pages/PredictionsPage';
 
 vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ json: async () => ({ ok: true, latest: { date: new Date().toISOString(), middle: '45' } }) } as any));
@@ -12,9 +14,19 @@ vi.mock('../services/api', () => {
   };
 });
 
+const renderWithProviders = (component: React.ReactElement) => {
+  return render(
+    <BrowserRouter>
+      <AuthProvider>
+        {component}
+      </AuthProvider>
+    </BrowserRouter>
+  );
+};
+
 describe('PredictionsPage', () => {
   it('loads predictions and live data', async () => {
-    render(<PredictionsPage />);
+    renderWithProviders(<PredictionsPage />);
 
     await waitFor(() => {
       expect(screen.getByText(/Next Number Predictions/i)).toBeInTheDocument();
@@ -24,7 +36,7 @@ describe('PredictionsPage', () => {
   });
 
   it('refresh button triggers fetch', async () => {
-    render(<PredictionsPage />);
+    renderWithProviders(<PredictionsPage />);
     const btn = await screen.findByText('Refresh');
     fireEvent.click(btn);
     await waitFor(() => {
@@ -32,5 +44,3 @@ describe('PredictionsPage', () => {
     });
   });
 });
-
-

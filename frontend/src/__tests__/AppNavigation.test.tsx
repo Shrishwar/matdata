@@ -1,14 +1,10 @@
 import { render, screen } from '@testing-library/react';
-import { MemoryRouter } from 'react-router-dom';
+import { describe, it, expect } from 'vitest';
 import App from '../App';
 
 describe('App navigation', () => {
   it('renders App and default route', () => {
-    render(
-      <MemoryRouter initialEntries={["/"]}>
-        <App />
-      </MemoryRouter>
-    );
+    render(<App />);
 
     expect(screen.getByText(/Dashboard/i)).toBeInTheDocument();
   });

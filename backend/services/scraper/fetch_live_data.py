@@ -48,12 +48,24 @@ def fetch_live_data():
                 len(double) == 2 and double.isdigit()):
             raise Exception("Invalid data format in latest row")
 
+        number = int(double)
+        tens = int(double[0])
+        units = int(double[1])
+        drawId = f"{date.date()}-{number}"
+        datetime_str = date.isoformat()
+        rawSource = str(last_row)
+        sourceUrl = url
+        fetchedAt = datetime.now().isoformat()
+
         result = {
-            "date": date.isoformat(),
-            "open3": open3,
-            "middle": middle,
-            "close3": close3,
-            "double": double
+            "drawId": drawId,
+            "datetime": datetime_str,
+            "number": number,
+            "tens": tens,
+            "units": units,
+            "rawSource": rawSource,
+            "sourceUrl": sourceUrl,
+            "fetchedAt": fetchedAt
         }
         print(json.dumps(result))
     except Exception as e:

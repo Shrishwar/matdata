@@ -2,86 +2,51 @@ const mongoose = require('mongoose');
 const moment = require('moment');
 
 const resultSchema = new mongoose.Schema({
+  drawId: {
+    type: String,
+    required: true,
+  },
+  datetime: {
+    type: Date,
+    required: true,
+  },
   date: {
     type: Date,
     required: true,
-    unique: true,
-    default: Date.now,
   },
-  open3: {
+  open3d: {
     type: String,
     required: true,
-    validate: {
-      validator: function(v) {
-        return /^\d{3}$/.test(v);
-      },
-      message: props => `${props.value} is not a valid 3-digit number!`
-    }
   },
-  close3: {
+  close3d: {
     type: String,
     required: true,
-    validate: {
-      validator: function(v) {
-        return /^\d{3}$/.test(v);
-      },
-      message: props => `${props.value} is not a valid 3-digit number!`
-    }
   },
   middle: {
     type: String,
     required: true,
-    validate: {
-      validator: function(v) {
-        return /^\d{2}$/.test(v);
-      },
-      message: props => `${props.value} is not a valid 2-digit number!`
-    }
   },
   double: {
     type: String,
     required: true,
-    validate: {
-      validator: function(v) {
-        return /^\d{2}$/.test(v);
-      },
-      message: props => `${props.value} is not a valid 2-digit number!`
-    }
   },
   openSum: {
     type: Number,
     required: true,
-    validate: {
-      validator: function(v) {
-        return v >= 0 && v <= 27; // Sum of 3 digits 0-9
-      },
-      message: props => `${props.value} is not a valid digit sum!`
-    }
   },
   closeSum: {
     type: Number,
     required: true,
-    validate: {
-      validator: function(v) {
-        return v >= 0 && v <= 27; // Sum of 3 digits 0-9
-      },
-      message: props => `${props.value} is not a valid digit sum!`
-    }
   },
-  finalNumber: {
+  rawSource: {
     type: String,
-    validate: {
-      validator: function(v) {
-        return !v || /^\d{2}$/.test(v);
-      },
-      message: props => `${props.value} is not a valid 2-digit number!`
-    }
+    required: true,
   },
-  source: {
+  sourceUrl: {
     type: String,
-    default: 'dpboss',
+    required: true,
   },
-  scrapedAt: {
+  fetchedAt: {
     type: Date,
     default: Date.now,
   }
@@ -94,34 +59,9 @@ resultSchema.add({
   confirmedAt: { type: Date, default: null }
 });
 
-// Virtuals for calculated fields (openSum and closeSum are now stored fields)
-
-resultSchema.virtual('openTens').get(function() {
-  return this.open3 ? parseInt(this.open3[0], 10) : 0;
-});
-
-resultSchema.virtual('openUnits').get(function() {
-  return this.open3 ? parseInt(this.open3[2], 10) : 0;
-});
-
-resultSchema.virtual('closeTens').get(function() {
-  return this.close3 ? parseInt(this.close3[0], 10) : 0;
-});
-
-resultSchema.virtual('closeUnits').get(function() {
-  return this.close3 ? parseInt(this.close3[2], 10) : 0;
-});
-
-resultSchema.virtual('doubleTens').get(function() {
-  return this.double ? parseInt(this.double[0], 10) : 0;
-});
-
-resultSchema.virtual('doubleUnits').get(function() {
-  return this.double ? parseInt(this.double[1], 10) : 0;
-});
-
+// Virtuals
 resultSchema.virtual('dayOfWeek').get(function() {
-  return this.date ? this.date.getDay() : 0;
+  return this.datetime ? this.datetime.getDay() : 0;
 });
 
 resultSchema.virtual('isWeekend').get(function() {
@@ -129,25 +69,18 @@ resultSchema.virtual('isWeekend').get(function() {
 });
 
 resultSchema.virtual('weekOfMonth').get(function() {
-  return this.date ? Math.ceil((this.date.getDate() + this.date.getDay()) / 7) : 1;
-});
-
-resultSchema.virtual('digitRootOpen').get(function() {
-  const sum = this.openSum;
-  return sum > 0 ? (sum - 1) % 9 + 1 : 0;
-});
-
-resultSchema.virtual('digitRootClose').get(function() {
-  const sum = this.closeSum;
-  return sum > 0 ? (sum - 1) % 9 + 1 : 0;
+  return this.datetime ? Math.ceil((this.datetime.getDate() + this.datetime.getDay()) / 7) : 1;
 });
 
 // Ensure virtuals are included when converting to JSON
 resultSchema.set('toJSON', { virtuals: true });
 resultSchema.set('toObject', { virtuals: true });
 
+// Compound unique index on drawId and date
+resultSchema.index({ drawId: 1, date: 1 }, { unique: true });
+
 // Index for faster lookups
-resultSchema.index({ date: -1 });
+resultSchema.index({ datetime: -1 });
 
 const Result = mongoose.model('Result', resultSchema);
 
@@ -159,12 +92,12 @@ const Result = mongoose.model('Result', resultSchema);
 resultSchema.statics.getHistoricalData = async function(timeRange = '30d') {
   try {
     let query = {};
-    
+
     // Parse time range (e.g., '7d', '1m', '1y')
     if (timeRange) {
       const amount = parseInt(timeRange);
       const unit = timeRange.replace(/\d+/g, '').toLowerCase();
-      
+
       // Convert to moment.js units
       let momentUnit;
       switch(unit) {
@@ -174,24 +107,29 @@ resultSchema.statics.getHistoricalData = async function(timeRange = '30d') {
         case 'y': momentUnit = 'years'; break;
         default: momentUnit = 'days';
       }
-      
+
       const startDate = moment().subtract(amount, momentUnit).toDate();
       query.date = { $gte: startDate };
     }
-    
+
     // Get and sort results by date (ascending)
     const results = await this.find(query)
       .sort({ date: 1 })
       .lean();
-      
+
     // Transform results to include only needed fields
     return results.map(r => ({
+      drawId: r.drawId,
       date: r.date,
-      number: parseInt(r.close3) % 100, // Using close3 as the main number
-      open3: r.open3,
+      open3d: r.open3d,
+      close3d: r.close3d,
       middle: r.middle,
       double: r.double,
-      finalNumber: r.finalNumber
+      openSum: r.openSum,
+      closeSum: r.closeSum,
+      rawSource: r.rawSource,
+      sourceUrl: r.sourceUrl,
+      fetchedAt: r.fetchedAt
     }));
   } catch (error) {
     console.error('Error fetching historical data:', error);
@@ -210,14 +148,19 @@ resultSchema.statics.getLatestResults = async function(limit = 100) {
       .sort({ date: -1 })
       .limit(limit)
       .lean();
-      
+
     return results.map(r => ({
+      drawId: r.drawId,
       date: r.date,
-      number: parseInt(r.close3) % 100,
-      open3: r.open3,
+      open3d: r.open3d,
+      close3d: r.close3d,
       middle: r.middle,
       double: r.double,
-      finalNumber: r.finalNumber
+      openSum: r.openSum,
+      closeSum: r.closeSum,
+      rawSource: r.rawSource,
+      sourceUrl: r.sourceUrl,
+      fetchedAt: r.fetchedAt
     })).reverse(); // Return in chronological order
   } catch (error) {
     console.error('Error fetching latest results:', error);
@@ -268,12 +211,12 @@ resultSchema.statics.getNumberFrequencies = async function(timeRange = '30d') {
     
     const frequencies = await this.aggregate([
       { $match: match },
-      { $group: { _id: '$close3', count: { $sum: 1 } } },
+      { $group: { _id: '$double', count: { $sum: 1 } } },
       { $sort: { count: -1 } }
     ]);
     
     return frequencies.map(f => ({
-      number: parseInt(f._id) % 100,
+      number: f._id,
       count: f.count
     }));
   } catch (error) {

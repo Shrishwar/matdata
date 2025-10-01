@@ -14,11 +14,11 @@ vi.mock('../services/api', () => ({
 }));
 
 describe('HomePage loading/error', () => {
-  it('shows error banner on load failure', async () => {
+  it('shows offline status on load failure', async () => {
     render(<HomePage />);
 
     await waitFor(() => {
-      expect(screen.getByText(/Failed to load data/i)).toBeInTheDocument();
+      expect(screen.getByText(/Offline/i)).toBeInTheDocument();
     });
   });
 });
