@@ -5,7 +5,39 @@ const puppeteer = require('puppeteer'); // Fallback for dynamic content
 const config = require('../../server/genius/config');
 const mongoose = require('mongoose');
 
-const SCRAPE_URL = 'https://dpboss.boston/panel-chart-record/main-bazar.php?full_chart';
+// Panel mapping and URL helpers
+const PANEL_MAP = {
+  MAIN_BAZAR: {
+    key: 'MAIN_BAZAR',
+    name: 'Main Bazar',
+    path: 'main-bazar.php'
+  },
+  KALYAN: {
+    key: 'KALYAN',
+    name: 'Kalyan',
+    path: 'kalyan.php'
+  },
+  MILAN: {
+    key: 'MILAN',
+    name: 'Milan',
+    path: 'milan.php'
+  },
+  RAJDHANI: {
+    key: 'RAJDHANI',
+    name: 'Rajdhani',
+    path: 'rajdhani.php'
+  }
+};
+
+function getPanelConfig(panel = 'MAIN_BAZAR') {
+  const upper = String(panel || '').toUpperCase();
+  return PANEL_MAP[upper] || PANEL_MAP.MAIN_BAZAR;
+}
+
+function buildPanelUrl(panel = 'MAIN_BAZAR') {
+  const cfg = getPanelConfig(panel);
+  return `https://dpboss.boston/panel-chart-record/${cfg.path}?full_chart`;
+}
 
 async function scrapeWithCheerio(url) {
   try {
@@ -47,7 +79,7 @@ async function scrapePage(url) {
   return $;
 }
 
-async function scrapeHistory() {
+async function scrapeHistory(panel = 'MAIN_BAZAR') {
   try {
     console.log('Starting full history scrape for Main Bazar...');
 
@@ -64,7 +96,8 @@ async function scrapeHistory() {
       waitedMs += intervalMs;
     }
 
-    const $ = await scrapePage(SCRAPE_URL);
+    const sourceUrl = buildPanelUrl(panel);
+    const $ = await scrapePage(sourceUrl);
 
     // Log raw HTML for debugging
     const rawHtml = $.html();
@@ -153,13 +186,15 @@ async function scrapeHistory() {
           const close3d = close3;
           const openSum = parseInt(open3d[0]) + parseInt(open3d[1]) + parseInt(open3d[2]);
           const closeSum = parseInt(close3d[0]) + parseInt(close3d[1]) + parseInt(close3d[2]);
-          const drawId = `${dayDate.toISOString().split('T')[0]}-${parseInt(double)}`;
+          const drawId = `${getPanelConfig(panel).key}_${dayDate.toISOString().split('T')[0]}_${'NIGHT'}`;
           const datetime = dayDate;
           const rawSource = $(row).html();
-          const sourceUrl = SCRAPE_URL;
+          const sourceUrl = sourceUrl;
           const fetchedAt = new Date();
 
           const result = {
+            panel: getPanelConfig(panel).key,
+            session: 'NIGHT',
             drawId,
             datetime,
             date: dayDate,
@@ -169,6 +204,7 @@ async function scrapeHistory() {
             double,
             openSum,
             closeSum,
+            rawHtml: rawSource,
             rawSource,
             sourceUrl,
             fetchedAt
@@ -217,13 +253,13 @@ async function scrapeHistory() {
 const { execFile } = require('child_process');
 const path = require('path');
 
-async function getLiveExtracted() {
+async function getLiveExtracted(panel = 'MAIN_BAZAR') {
   const maxRetries = 3;
   let lastError;
 
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
-      console.log(`Starting live extraction for latest Main Bazar result... (attempt ${attempt}/${maxRetries})`);
+      console.log(`Starting live extraction for latest ${getPanelConfig(panel).name} result... (attempt ${attempt}/${maxRetries})`);
 
       // Run Python script to fetch live data
       const pythonScriptPath = path.resolve(__dirname, 'fetch_live_data.py');
@@ -259,14 +295,21 @@ async function getLiveExtracted() {
       }
 
       const result = {
-        drawId: liveData.drawId,
+        panel: getPanelConfig(panel).key,
+        session: 'NIGHT',
+        drawId: liveData.drawId || `${getPanelConfig(panel).key}_${datetime.toISOString().split('T')[0]}_NIGHT`,
         datetime,
-        number: liveData.number,
-        tens: liveData.tens,
-        units: liveData.units,
+        date: new Date(datetime.toISOString().split('T')[0]),
+        open3d: liveData.open3 || liveData.open3d || '',
+        close3d: liveData.close3 || liveData.close3d || '',
+        middle: liveData.middle || liveData.double,
+        double: liveData.double,
+        openSum: liveData.openSum ?? 0,
+        closeSum: liveData.closeSum ?? 0,
+        rawHtml: liveData.rawHtml || liveData.rawSource,
         rawSource: liveData.rawSource,
-        sourceUrl: liveData.sourceUrl,
-        fetchedAt: new Date(liveData.fetchedAt)
+        sourceUrl: liveData.sourceUrl || buildPanelUrl(panel),
+        fetchedAt: new Date(liveData.fetchedAt || Date.now())
       };
 
       console.log('Live result extracted from Python script:', result);
@@ -285,14 +328,15 @@ async function getLiveExtracted() {
   throw lastError;
 }
 
-async function scrapeLatest() {
+async function scrapeLatest(panel = 'MAIN_BAZAR') {
   const maxRetries = 3;
   let lastError;
 
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
-      console.log(`Starting scrape for latest Main Bazar result... (attempt ${attempt}/${maxRetries})`);
-      const $ = await scrapePage(SCRAPE_URL);
+      console.log(`Starting scrape for latest ${getPanelConfig(panel).name} result... (attempt ${attempt}/${maxRetries})`);
+      const sourceUrl = buildPanelUrl(panel);
+      const $ = await scrapePage(sourceUrl);
 
       // Log raw HTML
       const rawHtml = $.html();
@@ -358,13 +402,15 @@ async function scrapeLatest() {
         const close3d = close3;
         const openSum = parseInt(open3d[0]) + parseInt(open3d[1]) + parseInt(open3d[2]);
         const closeSum = parseInt(close3d[0]) + parseInt(close3d[1]) + parseInt(close3d[2]);
-        const drawId = `${date.toISOString().split('T')[0]}-${parseInt(double)}`;
+        const drawId = `${getPanelConfig(panel).key}_${date.toISOString().split('T')[0]}_${'NIGHT'}`;
         const datetime = date;
         const rawSource = $(lastRow).html();
-        const sourceUrl = SCRAPE_URL;
+        const sourceUrl = sourceUrl;
         const fetchedAt = new Date();
 
         const result = {
+          panel: getPanelConfig(panel).key,
+          session: 'NIGHT',
           drawId,
           datetime,
           date,
@@ -374,6 +420,7 @@ async function scrapeLatest() {
           double,
           openSum,
           closeSum,
+          rawHtml: rawSource,
           rawSource,
           sourceUrl,
           fetchedAt
@@ -404,7 +451,7 @@ async function scrapeLatest() {
   throw lastError;
 }
 
-async function bulkScrape(days = 90) {
+async function bulkScrape(days = 90, panel = 'MAIN_BAZAR') {
   // Scrape last N days, with rate limiting
   const endDate = new Date();
   const startDate = new Date();
@@ -431,7 +478,7 @@ async function bulkScrape(days = 90) {
 
       if (!existing) {
         // Scrape and save - simplified, use getLiveExtracted for now
-        const result = await getLiveExtracted();
+        const result = await getLiveExtracted(panel);
         if (result && result.datetime.toDateString() === currentDate.toDateString()) {
           await Result.findOneAndUpdate(
             { drawId: result.drawId },
@@ -496,10 +543,10 @@ async function uploadCsvFallback(csvData) {
   return count;
 }
 
-async function dpbossFetch() {
+async function dpbossFetch(panel = 'MAIN_BAZAR') {
   try {
     console.log('Starting DPBoss fetch for latest result...');
-    const result = await scrapeLatest();
+    const result = await scrapeLatest(panel);
     console.log('DPBoss fetch completed:', result ? result.drawId : 'No new result');
     return result;
   } catch (error) {
@@ -508,4 +555,4 @@ async function dpbossFetch() {
   }
 }
 
-module.exports = { scrapeHistory, scrapeLatest, getLiveExtracted, bulkScrape, uploadCsvFallback, dpbossFetch };
+module.exports = { PANEL_MAP, getPanelConfig, buildPanelUrl, scrapeHistory, scrapeLatest, getLiveExtracted, bulkScrape, uploadCsvFallback, dpbossFetch };

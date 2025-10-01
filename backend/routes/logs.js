@@ -1,5 +1,26 @@
 const express = require('express');
 const router = express.Router();
+const PredictionLog = require('../models/PredictionLog');
+
+// GET /api/predictions/log?drawId=... or ?panel=...&limit=...
+router.get('/predictions/log', async (req, res) => {
+  try {
+    const { drawId } = req.query;
+    const panel = (req.query.panel || '').toUpperCase();
+    const limit = Math.min(parseInt(req.query.limit) || 50, 200);
+    const query = {};
+    if (drawId) query.drawId = drawId;
+    if (panel) query.panel = panel;
+    const logs = await PredictionLog.find(query).sort({ createdAt: -1 }).limit(limit).lean();
+    res.json({ success: true, logs });
+  } catch (e) {
+    res.status(500).json({ success: false, error: 'Failed to fetch prediction logs' });
+  }
+});
+
+module.exports = router;
+const express = require('express');
+const router = express.Router();
 const FetchLog = require('../models/FetchLog');
 
 // GET /api/logs?drawId=xxx

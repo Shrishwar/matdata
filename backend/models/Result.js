@@ -2,6 +2,20 @@ const mongoose = require('mongoose');
 const moment = require('moment');
 
 const resultSchema = new mongoose.Schema({
+  // Canonical identifiers
+  panel: {
+    type: String,
+    required: false, // backfill existing docs
+    index: true,
+    default: 'MAIN_BAZAR'
+  },
+  session: {
+    type: String,
+    required: false,
+    enum: ['MORNING', 'DAY', 'NIGHT'],
+    default: 'NIGHT',
+    index: true
+  },
   drawId: {
     type: String,
     required: true,
@@ -10,18 +24,16 @@ const resultSchema = new mongoose.Schema({
     type: Date,
     required: true,
   },
+  // drawDate alias for canonical JSON shape
   date: {
     type: Date,
     required: true,
   },
-  open3d: {
-    type: String,
-    required: true,
-  },
-  close3d: {
-    type: String,
-    required: true,
-  },
+  // Canonical field names with backward compatibility
+  open3: { type: String, required: false },
+  close3: { type: String, required: false },
+  open3d: { type: String, required: true },
+  close3d: { type: String, required: true },
   middle: {
     type: String,
     required: true,
@@ -38,6 +50,7 @@ const resultSchema = new mongoose.Schema({
     type: Number,
     required: true,
   },
+  rawHtml: { type: String, required: false },
   rawSource: {
     type: String,
     required: true,
@@ -78,6 +91,7 @@ resultSchema.set('toObject', { virtuals: true });
 
 // Compound unique index on drawId and date
 resultSchema.index({ drawId: 1, date: 1 }, { unique: true });
+resultSchema.index({ panel: 1, date: -1 });
 
 // Index for faster lookups
 resultSchema.index({ datetime: -1 });
@@ -121,12 +135,17 @@ resultSchema.statics.getHistoricalData = async function(timeRange = '30d') {
     return results.map(r => ({
       drawId: r.drawId,
       date: r.date,
+      panel: r.panel || 'MAIN_BAZAR',
+      session: r.session || 'NIGHT',
       open3d: r.open3d,
       close3d: r.close3d,
+      open3: r.open3 || r.open3d,
+      close3: r.close3 || r.close3d,
       middle: r.middle,
       double: r.double,
       openSum: r.openSum,
       closeSum: r.closeSum,
+      rawHtml: r.rawHtml || r.rawSource,
       rawSource: r.rawSource,
       sourceUrl: r.sourceUrl,
       fetchedAt: r.fetchedAt
@@ -152,12 +171,17 @@ resultSchema.statics.getLatestResults = async function(limit = 100) {
     return results.map(r => ({
       drawId: r.drawId,
       date: r.date,
+      panel: r.panel || 'MAIN_BAZAR',
+      session: r.session || 'NIGHT',
       open3d: r.open3d,
       close3d: r.close3d,
+      open3: r.open3 || r.open3d,
+      close3: r.close3 || r.close3d,
       middle: r.middle,
       double: r.double,
       openSum: r.openSum,
       closeSum: r.closeSum,
+      rawHtml: r.rawHtml || r.rawSource,
       rawSource: r.rawSource,
       sourceUrl: r.sourceUrl,
       fetchedAt: r.fetchedAt

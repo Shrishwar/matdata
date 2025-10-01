@@ -77,6 +77,15 @@ vi.mock('chart.js', () => {
   };
 });
 
+// Mock react-chartjs-2 components to lightweight stubs
+vi.mock('react-chartjs-2', () => {
+  return {
+    Bar: () => null,
+    Line: () => null,
+    Pie: () => null,
+  };
+});
+
 // Mock canvas getContext to prevent DOM context errors
 HTMLCanvasElement.prototype.getContext = vi.fn(() => ({
   fillRect: vi.fn(),

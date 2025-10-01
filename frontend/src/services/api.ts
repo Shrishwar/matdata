@@ -189,7 +189,7 @@ interface PredictionTableItem {
 // API methods
 export const predictionApi = {
   // Get predictions for the next number with analysis
-  getPredictions: async (limit: number = 10): Promise<ApiResponse<{
+  getPredictions: async (limit: number = 10, panel?: string): Promise<ApiResponse<{
     predictions: Prediction[];
     analysis: AnalysisResults;
     predictionTable: PredictionTableItem[];
@@ -197,7 +197,7 @@ export const predictionApi = {
   }>> => {
     try {
       const response = await api.get('/api/predictions/next', {
-        params: { limit },
+        params: { limit, panel },
         timeout: 60000, // 1 minute timeout for predictions
       });
       return { success: response.data.success, data: response.data.data, status: response.status };
@@ -208,9 +208,9 @@ export const predictionApi = {
   },
 
   // Get hybrid combined predictions (top 5 by default)
-  getCombined: async (limit: number = 5): Promise<ApiResponse<{ top: Array<{ number: number; confidence: number; human: string[]; system: string[] }>; provenance: any }>> => {
+  getCombined: async (limit: number = 5, panel?: string): Promise<ApiResponse<{ top: Array<{ number: number; confidence: number; human: string[]; system: string[] }>; provenance: any }>> => {
     try {
-      const response = await api.get('/api/predictions/combined', { params: { limit } });
+      const response = await api.get('/api/predictions/combined', { params: { limit, panel } });
       return { success: response.data.success, data: response.data.data, status: response.status };
     } catch (error) {
       console.error('Error fetching combined predictions:', error);
@@ -219,14 +219,14 @@ export const predictionApi = {
   },
 
   // Get live predictions based on DPBoss live chart data
-  getLivePredictions: async (limit: number = 5): Promise<ApiResponse<{
+  getLivePredictions: async (limit: number = 5, panel?: string): Promise<ApiResponse<{
     predictions: Prediction[];
     analysis: Partial<AnalysisResults>;
     provenance: any;
   }>> => {
     try {
       const response = await api.get('/api/predictions/live', {
-        params: { limit },
+        params: { limit, panel },
         timeout: 60000,
       });
       return { success: response.data.success, data: response.data, status: response.status };
@@ -368,10 +368,10 @@ export const resultsAPI = {
   },
 
   // Get historical results
-  getHistory: async (limit: number = 50): Promise<ApiResponse<{ history: any[] }>> => {
+  getHistory: async (limit: number = 50, panel?: string): Promise<ApiResponse<{ history: any[] }>> => {
     try {
       const response = await api.get('/api/history', {
-        params: { limit },
+        params: { limit, panel },
       });
       return { success: true, data: { history: response.data.history }, status: response.status };
     } catch (error) {

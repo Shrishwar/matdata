@@ -12,6 +12,7 @@ const { getLiveExtracted } = require('../services/scraper/dpbossScraper');
 const LIVE_CONSTANTS = {
   RANDOM_SEED: 42
 };
+const PredictionLog = require('../models/PredictionLog');
 
 // Validation middleware
 const validate = validations => {
@@ -35,42 +36,78 @@ const validate = validations => {
  */
 router.get('/next',
   validate([
-    query('limit').optional().isInt({ min: 1, max: 50 }).withMessage('Limit must be between 1 and 50')
+    query('limit').optional().isInt({ min: 1, max: 50 }).withMessage('Limit must be between 1 and 50'),
+    query('panel').optional().isString().isLength({ min: 3, max: 40 })
   ]),
   async (req, res) => {
     try {
       const limit = parseInt(req.query.limit) || 3;
+      const panel = (req.query.panel || 'MAIN_BAZAR').toUpperCase();
 
       // Check if sufficient data exists
-      const dataCount = await Result.countDocuments();
+      const dataCount = await Result.countDocuments({ panel });
       let responsePayload;
 
       if (dataCount >= 10) {
-        const result = await predictor.generatePredictions(limit);
+        // Load only DPBoss history for panel and feed predictor deterministically
+        const history = await Result.find({ panel })
+          .sort({ date: 1 })
+          .lean();
+        const series = history.map(h => {
+          const n = parseInt(h.double, 10);
+          return {
+            number: isNaN(n) ? 0 : n,
+            date: h.date,
+            timestamp: h.fetchedAt || h.date,
+            gameType: panel,
+            openClose: 'CLOSE',
+            tens: Math.floor((isNaN(n) ? 0 : n) / 10),
+            units: (isNaN(n) ? 0 : n) % 10,
+          };
+        });
+        const engine = new MatkaPredictor();
+        engine.historicalData = series;
+        const result = await engine.generatePredictions(Math.min(100, limit));
         responsePayload = {
           predictions: result.predictions.slice(0, limit),
           analysis: result.analysis,
           predictionTable: result.predictionTable,
-          summary: result.summary
+          summary: { ...result.summary, panel }
         };
+
+        // persist log
+        try {
+          const top = responsePayload.predictions.map(p => ({
+            number: String(p.number).padStart(2, '0'),
+            confidencePct: Math.round(p.confidence),
+            explanations: [
+              `Score=${p.score?.toFixed?.(3) ?? 'n/a'}`,
+              'Support: frequency + markov + ml'
+            ]
+          }));
+          await PredictionLog.create({
+            panel,
+            request: 'next',
+            type: 'double',
+            inputRange: responsePayload.summary?.dataRange,
+            modelVersion: 'hybrid-1.0.0',
+            seed: LIVE_CONSTANTS.RANDOM_SEED,
+            predictions: top,
+            analysisSummary: {
+              chiSquare: result.analysis?.chiSquareTest?.chiSquare,
+              runsZ: result.analysis?.runsTest?.zScore
+            },
+            provenance: { source: 'dpboss-history' }
+          });
+        } catch (e) {
+          logger.error('Failed to log prediction next', e);
+        }
       } else {
-        // Heuristic fallback to always return top-3 using available data
-        const history = await Result.find({}).sort({ date: -1 }).limit(Math.min(50, dataCount)).lean();
-        const freq = new Array(100).fill(0);
-        history.forEach(h => {
-          const n = parseInt(h.double, 10);
-          if (!isNaN(n) && n >= 0 && n < 100) freq[n]++;
+        return res.status(400).json({
+          success: false,
+          error: 'Insufficient DPBoss history',
+          details: `Need >=10 records for panel ${panel}, found ${dataCount}`
         });
-        const ranked = Array.from({ length: 100 }, (_, n) => ({ n, c: freq[n] }))
-          .sort((a, b) => b.c - a.c || a.n - b.n)
-          .slice(0, limit)
-          .map((r, idx) => ({ number: r.n, confidence: Math.max(50, 70 - idx * 10) }));
-        responsePayload = {
-          predictions: ranked,
-          analysis: { note: 'Fallback heuristic due to low data', total: dataCount },
-          predictionTable: [],
-          summary: { totalRecords: dataCount, lastNumber: history[0] ? parseInt(history[0].double, 10) : null, isRandom: false, topPredictions: ranked }
-        };
       }
       
       // Format the response with full analysis
@@ -266,15 +303,17 @@ router.get('/metrics',
  */
 router.get('/live',
   validate([
-    query('limit').optional().isInt({ min: 1, max: 10 }).withMessage('Limit must be between 1 and 10')
+    query('limit').optional().isInt({ min: 1, max: 10 }).withMessage('Limit must be between 1 and 10'),
+    query('panel').optional().isString().isLength({ min: 3, max: 40 })
   ]),
   async (req, res) => {
     try {
       const limit = parseInt(req.query.limit) || 5;
+      const panel = (req.query.panel || 'MAIN_BAZAR').toUpperCase();
 
       // Fetch live DPBoss data
       logger.info('Fetching live DPBoss chart data...');
-      const liveData = await getLiveExtracted();
+      const liveData = await getLiveExtracted(panel);
 
       if (!liveData) {
         return res.status(503).json({
@@ -291,7 +330,7 @@ router.get('/live',
       endOfDay.setHours(23, 59, 59, 999);
 
       await Result.findOneAndUpdate(
-        { date: { $gte: startOfDay, $lt: endOfDay } },
+        { panel, date: { $gte: startOfDay, $lt: endOfDay } },
         liveData,
         { upsert: true, new: true, setDefaultsOnInsert: true }
       );
@@ -299,7 +338,7 @@ router.get('/live',
       logger.info(`Live data saved for ${liveData.date.toISOString().split('T')[0]}`);
 
       // Load historical data including the new live data
-      const historicalData = await Result.find({})
+      const historicalData = await Result.find({ panel })
         .sort({ date: -1 })
         .limit(100) // Use last 100 records for prediction
         .lean();
@@ -362,9 +401,34 @@ router.get('/live',
           source: 'dpboss',
           fetchedAt: new Date().toISOString(),
           modelVersion: '1.0.0',
-          seed: LIVE_CONSTANTS.RANDOM_SEED
+          seed: LIVE_CONSTANTS.RANDOM_SEED,
+          panel
         }
       };
+
+      try {
+        const top = response.predictions.map(p => ({
+          number: String(p.number).padStart(2, '0'),
+          confidencePct: Math.round(p.confidence),
+          explanations: p.explanation
+        }));
+        await PredictionLog.create({
+          panel,
+          request: 'live',
+          type: 'double',
+          inputRange: { recordCount: historicalData.length },
+          modelVersion: response.provenance.modelVersion,
+          seed: response.provenance.seed,
+          predictions: top,
+          analysisSummary: {
+            freqTop: response.analysis.freqTop,
+            steady: response.analysis.markov?.steadyStateProbs?.slice(0, 5)
+          },
+          provenance: response.provenance
+        });
+      } catch (e) {
+        logger.error('Failed to log live prediction', e);
+      }
 
       res.json(response);
     } catch (error) {
@@ -577,10 +641,122 @@ router.get('/combined',
         },
       };
 
+      try {
+        const top = response.data.top.map(t => ({ number: String(t.number).padStart(2, '0'), confidencePct: t.confidence, explanations: [...(t.human || []), ...(t.system || [])] }));
+        await PredictionLog.create({
+          panel: 'MAIN_BAZAR',
+          request: 'combined',
+          type: 'double',
+          inputRange: { recordCount: history.length },
+          modelVersion: 'hybrid-1.0.0',
+          seed: LIVE_CONSTANTS.RANDOM_SEED,
+          predictions: top,
+          provenance: response.data.provenance
+        });
+      } catch (e) {
+        logger.error('Failed to log combined prediction', e);
+      }
+
       res.json(response);
     } catch (error) {
       logger.error('Combined predictor error:', { error: error.message, stack: error.stack });
       res.status(500).json({ success: false, error: 'Failed to compute combined predictions' });
+    }
+  }
+);
+
+/**
+ * @route   POST /api/predictions/full
+ * @desc    Run full pipeline (all algorithms) for a panel
+ * @access  Public
+ */
+router.post('/full',
+  validate([
+    query('panel').optional().isString().isLength({ min: 3, max: 40 })
+  ]),
+  async (req, res) => {
+    try {
+      const panel = (req.query.panel || 'MAIN_BAZAR').toUpperCase();
+
+      const history = await Result.find({ panel })
+        .sort({ date: 1 })
+        .lean();
+
+      if (!history || history.length < 50) {
+        return res.status(400).json({
+          success: false,
+          error: 'Insufficient DPBoss history',
+          details: `Need >=50 records, found ${history ? history.length : 0}`,
+        });
+      }
+
+      const series = history.map(h => {
+        const n = parseInt(h.double, 10);
+        return {
+          number: isNaN(n) ? 0 : n,
+          date: h.date,
+          timestamp: h.fetchedAt || h.date,
+          gameType: panel,
+          openClose: 'CLOSE',
+          tens: Math.floor((isNaN(n) ? 0 : n) / 10),
+          units: (isNaN(n) ? 0 : n) % 10,
+        };
+      });
+
+      const engine = new MatkaPredictor();
+      engine.historicalData = series;
+      const result = await engine.generatePredictions(100);
+
+      // Build final scoring table from multiple logics
+      const table = (result.predictionTable || []).slice(0, 20);
+
+      const response = {
+        success: true,
+        data: {
+          top: result.predictions.slice(0, 10).map(p => ({
+            number: p.number,
+            confidence: p.confidence,
+            explanations: [
+              `Freq=${(p.frequency ?? 0).toFixed?.(3) || 'n/a'}`,
+              `Markov=${(p.transitionProb ?? 0).toFixed?.(3) || 'n/a'}`,
+              `ML=${(p.mlProb ?? 0).toFixed?.(3) || 'n/a'}`,
+            ]
+          })),
+          analysis: result.analysis,
+          predictionTable: table,
+          provenance: {
+            source: 'dpboss-history',
+            panel,
+            deterministic: true,
+            modelVersion: 'hybrid-1.0.0',
+            seed: LIVE_CONSTANTS.RANDOM_SEED,
+          }
+        }
+      };
+
+      try {
+        await PredictionLog.create({
+          panel,
+          request: 'full',
+          type: 'all',
+          inputRange: result.summary?.dataRange,
+          modelVersion: 'hybrid-1.0.0',
+          seed: LIVE_CONSTANTS.RANDOM_SEED,
+          predictions: response.data.top.map(t => ({ number: String(t.number).padStart(2, '0'), confidencePct: t.confidence, explanations: t.explanations })),
+          analysisSummary: {
+            chiSquare: result.analysis?.chiSquareTest?.chiSquare,
+            runsZ: result.analysis?.runsTest?.zScore
+          },
+          provenance: response.data.provenance
+        });
+      } catch (e) {
+        logger.error('Failed to log full prediction', e);
+      }
+
+      res.json(response);
+    } catch (error) {
+      logger.error('Full pipeline error:', { error: error.message, stack: error.stack });
+      res.status(500).json({ success: false, error: 'Failed to run full prediction pipeline' });
     }
   }
 );

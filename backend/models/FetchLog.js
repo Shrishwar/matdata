@@ -1,21 +1,6 @@
 const mongoose = require('mongoose');
 
 const fetchLogSchema = new mongoose.Schema({
-	drawId: { type: String, index: true },
-	success: { type: Boolean, required: true },
-	rawHtml: { type: String, default: '' },
-	errorMessage: { type: String, default: null },
-	sourceUrl: { type: String, required: true },
-	method: { type: String, required: true },
-	fetchedAt: { type: Date, default: Date.now },
-}, { timestamps: true });
-
-fetchLogSchema.index({ createdAt: -1 });
-
-module.exports = mongoose.model('FetchLog', fetchLogSchema);
-const mongoose = require('mongoose');
-
-const fetchLogSchema = new mongoose.Schema({
   drawId: {
     type: String,
     required: true,

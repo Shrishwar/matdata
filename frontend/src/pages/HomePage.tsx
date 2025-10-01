@@ -1,6 +1,7 @@
 import { useEffect, useState, useRef } from 'react';
 import { format, isToday, isYesterday } from 'date-fns';
 import { resultsAPI, predictionApi } from '../services/api';
+import HomePanelSelector from '../components/HomePanelSelector';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { ArrowPathIcon, CheckCircleIcon, WifiIcon, ExclamationTriangleIcon, SparklesIcon } from '@heroicons/react/24/outline';
 
@@ -25,6 +26,13 @@ type LatestState = Result & { isLiveConfirmed?: boolean };
 
 const HomePage = () => {
   const [upcoming, setUpcoming] = useState<any>(null);
+  const [panel, setPanel] = useState<string>('MAIN_BAZAR');
+  const [panelList, setPanelList] = useState<Array<{ key: string; name: string }>>([
+    { key: 'MAIN_BAZAR', name: 'Main Bazar' },
+    { key: 'KALYAN', name: 'Kalyan' },
+    { key: 'MILAN', name: 'Milan' },
+    { key: 'RAJDHANI', name: 'Rajdhani' },
+  ]);
   const [latest, setLatest] = useState<LatestState | null>(null);
   const [latestGuess, setLatestGuess] = useState<any>(null);
   const [liveMatch, setLiveMatch] = useState<boolean | null>(null);
@@ -90,7 +98,7 @@ const HomePage = () => {
         }
         let predictedTop3: string[] = [];
         try {
-          const resp = await predictionApi.getCombined(3);
+          const resp = await predictionApi.getCombined(3, panel);
           if (resp.success) {
             predictedTop3 = resp.data.top.map((t: any) => t.number.toString().padStart(2, '0'));
           }
@@ -158,7 +166,7 @@ const fetchLivePredictions = async () => {
     setLivePredictionsLoading(true);
     setError(null);
     console.log('Fetching live predictions...');
-    const response = await predictionApi.getLivePredictions();
+    const response = await predictionApi.getLivePredictions(5, panel);
     console.log('Live predictions response:', response);
 
     if (response.success) {
@@ -184,7 +192,7 @@ const fetchLivePredictions = async () => {
         sseCleanupRef.current();
       }
     };
-  }, []);
+  }, [panel]);
 
   // Format data for the chart
   const chartData = guesses.map(guess => ({
@@ -208,7 +216,8 @@ const fetchLivePredictions = async () => {
             </span>
           </div>
         </div>
-        <div className="space-x-2">
+        <div className="space-x-2 flex items-center">
+          <HomePanelSelector panels={panelList} value={panel} onChange={setPanel} />
           <button
             onClick={fetchData}
             disabled={isLoading}

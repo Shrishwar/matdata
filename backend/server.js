@@ -14,6 +14,7 @@ const WebSocket = require('ws');
 const authRoutes = require('./routes/auth');
 const { router: resultRoutes, broadcastLatestUpdate } = require('./routes/results');
 const predictionRoutes = require('./routes/predictions');
+const panelsRoutes = require('./routes/panels');
 const logsRoutes = require('./routes/logs');
 const historyRoutes = require('./routes/history');
 
@@ -39,13 +40,16 @@ app.use('/api/auth', authRoutes);
 app.use('/api/results', resultRoutes);
 app.use('/api/predictions', predictionRoutes);
 app.use('/api/logs', logsRoutes);
+app.use('/api/panels', panelsRoutes);
 app.use('/api', historyRoutes);
 
 // GET /api/history - returns sorted draws from DB
 app.get('/api/history', async (req, res) => {
   try {
     const Result = require('./models/Result');
-    const results = await Result.find().sort({ date: -1 }).limit(100);
+    const panel = (req.query.panel || 'MAIN_BAZAR').toUpperCase();
+    const limit = Math.min(parseInt(req.query.limit) || 100, 500);
+    const results = await Result.find({ panel }).sort({ date: -1 }).limit(limit);
     res.json(results);
   } catch (error) {
     console.error('Error fetching history:', error);

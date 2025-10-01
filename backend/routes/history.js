@@ -1,3 +1,4 @@
+// Extend existing history route module only if needed by other imports
 const express = require('express');
 const router = express.Router();
 const Result = require('../models/Result');

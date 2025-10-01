@@ -1,3 +1,32 @@
+// Add manual sync route for DPBoss backfill
+const express = require('express');
+const router = express.Router();
+const { dpbossFetch, bulkScrape, getPanelConfig } = require('../services/scraper/dpbossScraper');
+const Result = require('../models/Result');
+
+// POST /api/dpboss/sync?panel=MAIN_BAZAR&mode=latest|full&days=180
+router.post('/dpboss/sync', async (req, res) => {
+  try {
+    const panel = (req.query.panel || 'MAIN_BAZAR').toUpperCase();
+    const mode = (req.query.mode || 'latest').toLowerCase();
+    const days = Math.min(parseInt(req.query.days) || 180, 3650);
+
+    if (mode === 'latest') {
+      const saved = await dpbossFetch(panel);
+      return res.json({ success: true, mode, panel, saved });
+    }
+
+    // full backfill
+    const count = await bulkScrape(days, panel);
+    const total = await Result.countDocuments({ panel });
+    res.json({ success: true, mode: 'full', panel, days, added: count, total });
+  } catch (error) {
+    console.error('DPBoss sync error:', error);
+    res.status(503).json({ success: false, error: 'DPBoss unreachable or parse error' });
+  }
+});
+
+module.exports = { router };
 const express = require('express');
 const router = express.Router();
 const multer = require('multer');
