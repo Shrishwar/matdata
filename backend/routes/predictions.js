@@ -33,7 +33,7 @@ const validate = validations => {
  * @desc    Get predictions for the next number
  * @access  Private
  */
-router.post('/next',
+router.get('/next',
   validate([
     query('limit').optional().isInt({ min: 1, max: 50 }).withMessage('Limit must be between 1 and 50')
   ]),

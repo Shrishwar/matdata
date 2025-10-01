@@ -370,7 +370,7 @@ export const resultsAPI = {
   // Get historical results
   getHistory: async (limit: number = 50): Promise<ApiResponse<{ history: any[] }>> => {
     try {
-      const response = await api.get('/api/results/history', {
+      const response = await api.get('/api/history', {
         params: { limit },
       });
       return { success: true, data: { history: response.data.history }, status: response.status };

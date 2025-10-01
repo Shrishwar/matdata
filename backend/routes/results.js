@@ -69,26 +69,8 @@ router.get('/fetch-latest', async (req, res) => {
       message: 'Latest result fetched successfully'
     });
   } catch (error) {
-    console.error('Scrape failed, falling back to latest from DB:', error.message);
-    try {
-      // Fallback: get the most recent result from DB
-      const fallbackResult = await Result.findOne()
-        .sort({ datetime: -1 })
-        .limit(1);
-      if (fallbackResult) {
-        console.log('Returning cached latest result from DB');
-        res.json({
-          ok: true,
-          latest: { ...fallbackResult.toObject(), liveMatch: false, liveHtmlSnippet: 'Fallback from DB' },
-          message: 'Using cached latest from DB'
-        });
-      } else {
-        res.status(500).json({ ok: false, message: 'No data available from scrape or DB' });
-      }
-    } catch (dbError) {
-      console.error('DB fallback error:', dbError.message);
-      res.status(500).json({ ok: false, message: 'Error fetching latest result and no fallback available' });
-    }
+    console.error('DPBoss scrape failed:', error.message);
+    return res.status(503).json({ ok: false, message: 'DPBoss unavailable' });
   }
 });
 
@@ -432,80 +414,24 @@ router.get('/api/history', async (req, res) => {
 // @access  Public
 router.get('/history', async (req, res) => {
   try {
-    console.log('Fetching history from DB...');
-    const yesterday = new Date();
-    yesterday.setDate(yesterday.getDate() - 1);
+    const limit = parseInt(req.query.limit || '200');
+    const results = await Result.find({})
+      .sort({ date: -1 })
+      .limit(limit)
+      .lean();
 
-    // Check if external source has new data
-    let needsScrape = false;
-    try {
-      const latestScraped = await scrapeLatest();
-      const latestResult = await Result.findOne().sort({ date: -1 }).lean();
+    const history = results.map(r => ({
+      _id: r._id,
+      date: r.date,
+      open3: r.open3d,
+      close3: r.close3d,
+      middle: r.middle,
+      double: r.double,
+      openSum: r.openSum,
+      closeSum: r.closeSum,
+    }));
 
-      if (!latestResult) {
-        needsScrape = true;
-        console.log('No results found in DB, will scrape history');
-      } else {
-        const latestDbDate = new Date(latestResult.date);
-        const latestScrapedDate = new Date(latestScraped.date);
-
-        if (latestScrapedDate > latestDbDate) {
-          needsScrape = true;
-          console.log(`External source has newer data: ${latestScrapedDate.toISOString()} > ${latestDbDate.toISOString()}, will scrape history`);
-        }
-      }
-    } catch (scrapeError) {
-      console.error('Failed to check external source for updates:', scrapeError.message);
-      // Fallback to date-based check
-      const latestResult = await Result.findOne().sort({ date: -1 }).lean();
-      if (!latestResult) {
-        needsScrape = true;
-        console.log('No results found in DB, will scrape history');
-      } else {
-        const latestDate = new Date(latestResult.date);
-        latestDate.setHours(23, 59, 59, 999);
-        if (latestDate < yesterday) {
-          needsScrape = true;
-          console.log(`Latest result date ${latestDate.toISOString()} is older than yesterday ${yesterday.toISOString()}, will scrape history`);
-        }
-      }
-    }
-
-    if (needsScrape) {
-      try {
-        const scrapedCount = await scrapeHistory();
-        console.log(`Auto-scrape completed, added ${scrapedCount} results`);
-
-        // Fill missing weekdays with estimated data
-        const fillResult = await fillMissingWeekdays({ lookbackDays: 30 });
-        console.log(`Filled missing weekdays: created ${fillResult.createdCount}, missing ${fillResult.missingCount}`);
-
-      } catch (scrapeError) {
-        console.error('Auto-scrape failed:', scrapeError.message);
-        return res.status(500).json({
-          message: 'Failed to fetch history and auto-scrape failed',
-          error: scrapeError.message
-        });
-      }
-    }
-
-    let results = await Result.aggregate([
-      {
-        $match: {
-          date: { $lt: yesterday },
-          $expr: { $not: { $in: [ { $dayOfWeek: "$date" }, [1, 7] ] } }  // Exclude Sunday (1) and Saturday (7)
-        }
-      },
-      { $sort: { date: -1 } },
-      { $limit: 50 }
-    ]);
-
-    console.log(`Fetched ${results.length} history results from DB`);
-
-    res.json({
-      history: results,
-      total: results.length
-    });
+    res.json({ history, total: history.length });
   } catch (error) {
     console.error('Error fetching history:', error);
     res.status(500).json({ message: 'Server error fetching history', error: error.message });

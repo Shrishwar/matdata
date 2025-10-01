@@ -7,7 +7,7 @@ class DpbossSync {
   constructor(broadcastToWS = null) {
     this.intervalId = null;
     this.isRunning = false;
-    this.fetchIntervalMinutes = process.env.FETCH_INTERVAL_MINUTES || 5; // Default 5 minutes
+    this.fetchIntervalMinutes = process.env.FETCH_INTERVAL_MINUTES || 2; // 2 minutes per requirement
     this.previousLatest = null;
     this.broadcastToWS = broadcastToWS;
   }
@@ -95,14 +95,21 @@ class DpbossSync {
         const history = await Result.find().sort({ date: -1 }).limit(100);
         const guesses = this.generateSimpleGuesses(history, latest.double);
 
+        // Normalize payload fields for frontend (open3/close3)
+        const latestForFrontend = {
+          ...latest.toObject ? latest.toObject() : latest,
+          open3: latest.open3d,
+          close3: latest.close3d,
+        };
+
         // Broadcast to SSE clients
-        broadcastLatestUpdate(latest, guesses, liveMatch, liveHtmlSnippet);
+        broadcastLatestUpdate(latestForFrontend, guesses, liveMatch, liveHtmlSnippet);
 
         // Broadcast to WebSocket clients if available
         if (this.broadcastToWS) {
           this.broadcastToWS({
             type: 'latest-update',
-            latest,
+            latest: latestForFrontend,
             guesses,
             liveMatch,
             liveHtmlSnippet

@@ -14,6 +14,8 @@ const WebSocket = require('ws');
 const authRoutes = require('./routes/auth');
 const { router: resultRoutes, broadcastLatestUpdate } = require('./routes/results');
 const predictionRoutes = require('./routes/predictions');
+const logsRoutes = require('./routes/logs');
+const historyRoutes = require('./routes/history');
 
 const app = express();
 
@@ -36,6 +38,8 @@ app.use('/api/auth', authLimiter); // Stricter for auth
 app.use('/api/auth', authRoutes);
 app.use('/api/results', resultRoutes);
 app.use('/api/predictions', predictionRoutes);
+app.use('/api/logs', logsRoutes);
+app.use('/api', historyRoutes);
 
 // GET /api/history - returns sorted draws from DB
 app.get('/api/history', async (req, res) => {
@@ -172,18 +176,7 @@ const startServer = async () => {
     const syncService = new DpbossSync(broadcastToWS);
     await syncService.start();
 
-    // Schedule gap fill pass shortly after each hour on weekdays
-    cron.schedule('7 * * * 1-5', async () => {
-      try {
-        const { fillMissingWeekdays } = require('./services/historySync');
-        const result = await fillMissingWeekdays({ lookbackDays: 120 });
-        if (result.createdCount > 0) {
-          console.log(`Gap fill created ${result.createdCount} estimated entries`);
-        }
-      } catch (e) {
-        console.error('Gap fill cron failed:', e.message);
-      }
-    });
+    // Removed gap-fill cron to ensure only real DPBoss numbers are used
 
     // Simple guess generation for cron (subset of full logic)
     function generateSimpleGuesses(history, prevDouble) {
