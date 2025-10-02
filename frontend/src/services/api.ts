@@ -368,12 +368,14 @@ export const resultsAPI = {
   },
 
   // Get historical results
-  getHistory: async (limit: number = 50, panel?: string): Promise<ApiResponse<{ history: any[] }>> => {
+  getHistory: async (limit: number = 200, panel?: string): Promise<ApiResponse<{ history: any[] }>> => {
     try {
       const response = await api.get('/api/history', {
         params: { limit, panel },
       });
-      return { success: true, data: { history: response.data.history }, status: response.status };
+      // Handle both response formats - direct array or object with history property
+      const history = Array.isArray(response.data) ? response.data : response.data.history || [];
+      return { success: true, data: { history }, status: response.status };
     } catch (error) {
       console.error('Error fetching history:', error);
       throw error;

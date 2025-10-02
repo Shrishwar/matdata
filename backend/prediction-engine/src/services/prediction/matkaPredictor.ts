@@ -813,9 +813,9 @@ class MatkaPredictor {
     logger.info('Generating predictions...');
     
     try {
-      // Ensure we have data loaded
+      // Ensure we have data loaded (last 200 days)
       if (this.historicalData.length === 0) {
-        await this.loadData('30d');
+        await this.loadData('200d');
       }
 
       this.prepareData();

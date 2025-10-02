@@ -456,8 +456,13 @@ router.get('/combined',
     try {
       const limit = parseInt(req.query.limit) || 5;
 
-      // Load only real DPBoss history from DB
-      const history = await Result.find({})
+      // Load only real DPBoss history from DB (last 200 days)
+      const moment = require('moment');
+      const twoHundredDaysAgo = moment().subtract(200, 'days').toDate();
+      
+      const history = await Result.find({
+        date: { $gte: twoHundredDaysAgo }
+      })
         .sort({ date: 1 }) // chronological
         .lean();
 
@@ -678,7 +683,14 @@ router.post('/full',
     try {
       const panel = (req.query.panel || 'MAIN_BAZAR').toUpperCase();
 
-      const history = await Result.find({ panel })
+      // Load only last 200 days of data for predictions
+      const moment = require('moment');
+      const twoHundredDaysAgo = moment().subtract(200, 'days').toDate();
+      
+      const history = await Result.find({ 
+        panel,
+        date: { $gte: twoHundredDaysAgo }
+      })
         .sort({ date: 1 })
         .lean();
 

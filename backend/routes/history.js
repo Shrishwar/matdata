@@ -3,20 +3,29 @@ const express = require('express');
 const router = express.Router();
 const Result = require('../models/Result');
 
-// GET /api/history -> return history from DB only
+// GET /api/history -> return history from DB only (last 200 days)
 router.get('/history', async (req, res) => {
 	try {
+		const moment = require('moment');
 		const limit = parseInt(req.query.limit || '200');
-		const results = await Result.find({})
-			.sort({ date: -1 })
-			.limit(limit)
-			.lean();
+		const panel = (req.query.panel || 'MAIN_BAZAR').toUpperCase();
+		
+		// Calculate date 200 days ago
+		const twoHundredDaysAgo = moment().subtract(200, 'days').toDate();
+		
+		const results = await Result.find({ 
+			panel,
+			date: { $gte: twoHundredDaysAgo }
+		})
+		.sort({ date: -1 })
+		.limit(limit)
+		.lean();
 
 		const history = results.map(r => ({
 			_id: r._id,
 			date: r.date,
-			open3: r.open3d,
-			close3: r.close3d,
+			open3: r.open3d || r.open3,
+			close3: r.close3d || r.close3,
 			middle: r.middle,
 			double: r.double,
 			openSum: r.openSum,
