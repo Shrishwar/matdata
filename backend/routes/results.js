@@ -1,7 +1,7 @@
 // Add manual sync route for DPBoss backfill
 const express = require('express');
 const router = express.Router();
-const { dpbossFetch, bulkScrape, getPanelConfig } = require('../services/scraper/dpbossScraper');
+const { dpbossFetch, bulkScrape, getPanelConfig, scrapeLatest, scrapeHistory, getLiveExtracted, uploadCsvFallback } = require('../services/scraper/dpbossScraper');
 const Result = require('../models/Result');
 
 // POST /api/dpboss/sync?panel=MAIN_BAZAR&mode=latest|full&days=180
@@ -26,14 +26,10 @@ router.post('/dpboss/sync', async (req, res) => {
   }
 });
 
-module.exports = { router };
-const express = require('express');
-const router = express.Router();
 const multer = require('multer');
 const Tesseract = require('tesseract.js');
 const { auth, admin } = require('../middleware/auth');
-const Result = require('../models/Result');
-const { scrapeLatest, scrapeHistory, getLiveExtracted, bulkScrape, uploadCsvFallback } = require('../services/scraper/dpbossScraper');
+
 const MatkaPredictor = require('../prediction-engine/dist/services/prediction/matkaPredictor.js').default;
 const geniusPredictor = require('../server/genius/predictor');
 const featurizer = require('../services/featurizer');

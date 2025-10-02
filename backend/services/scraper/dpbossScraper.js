@@ -139,13 +139,8 @@ async function scrapeHistory(panel = 'MAIN_BAZAR') {
         const parts = startDateStr.includes('/') ? startDateStr.split('/') : startDateStr.split('-');
         if (parts.length === 3) {
           const [p1, p2, year] = parts;
-          if (parseInt(p1) > 12) {
-            // Assume DD/MM/YYYY or DD-MM-YYYY
-            startDate = new Date(`${year}-${p2.padStart(2, '0')}-${p1.padStart(2, '0')}`);
-          } else {
-            // Assume MM/DD/YYYY or MM-DD-YYYY
-            startDate = new Date(`${year}-${p1.padStart(2, '0')}-${p2.padStart(2, '0')}`);
-          }
+          // Always assume DD/MM/YYYY or DD-MM-YYYY for this site
+          startDate = new Date(`${year}-${p2.padStart(2, '0')}-${p1.padStart(2, '0')}`);
         } else {
           startDate = new Date(startDateStr);
         }
@@ -174,23 +169,22 @@ async function scrapeHistory(panel = 'MAIN_BAZAR') {
         const middleIdx = 2 + dayOffset * 3;
         const closeIdx = 3 + dayOffset * 3;
 
-        const open3 = $(tds[openIdx]).text().trim();
-        const middle = $(tds[middleIdx]).text().trim();
-        const close3 = $(tds[closeIdx]).text().trim();
+        const open3 = $(tds[openIdx]).text().replace(/\s+/g, '');
+        const middle = $(tds[middleIdx]).text().replace(/\s+/g, '');
+        const close3 = $(tds[closeIdx]).text().replace(/\s+/g, '');
         const double = middle;
 
         console.log(`Row ${rowIndex} Day ${dayOffset + 1}: date=${dayDate.toISOString().split('T')[0]}, open3='${open3}' (len:${open3.length}), middle='${middle}' (len:${middle.length}), close3='${close3}' (len:${close3.length}), double='${double}' (len:${double.length})`);
 
         if (/^\d{3}$/.test(open3) && /^\d{2}$/.test(middle) && /^\d{3}$/.test(close3) && /^\d{2}$/.test(double)) {
-          const open3d = open3;
-          const close3d = close3;
-          const openSum = parseInt(open3d[0]) + parseInt(open3d[1]) + parseInt(open3d[2]);
-          const closeSum = parseInt(close3d[0]) + parseInt(close3d[1]) + parseInt(close3d[2]);
-          const drawId = `${getPanelConfig(panel).key}_${dayDate.toISOString().split('T')[0]}_${'NIGHT'}`;
-          const datetime = dayDate;
-          const rawSource = $(row).html();
-          const sourceUrl = sourceUrl;
-          const fetchedAt = new Date();
+        const open3d = open3;
+        const close3d = close3;
+        const openSum = parseInt(open3d[0]) + parseInt(open3d[1]) + parseInt(open3d[2]);
+        const closeSum = parseInt(close3d[0]) + parseInt(close3d[1]) + parseInt(close3d[2]);
+        const drawId = `${getPanelConfig(panel).key}_${dayDate.toISOString().split('T')[0]}_${'NIGHT'}`;
+        const datetime = dayDate;
+        const rawSource = $(row).html();
+        const fetchedAt = new Date();
 
           const result = {
             panel: getPanelConfig(panel).key,
@@ -392,9 +386,9 @@ async function scrapeLatest(panel = 'MAIN_BAZAR') {
         throw new Error(`Latest date is in the future: ${date.toISOString().split('T')[0]}. No live data to scrape yet.`);
       }
 
-      const open3 = $(tds[13]).text().trim();
-      const middle = $(tds[14]).text().trim();
-      const close3 = $(tds[15]).text().trim();
+      const open3 = $(tds[13]).text().replace(/\s+/g, '');
+      const middle = $(tds[14]).text().replace(/\s+/g, '');
+      const close3 = $(tds[15]).text().replace(/\s+/g, '');
       const double = middle;
 
       if (/^\d{3}$/.test(open3) && /^\d{2}$/.test(middle) && /^\d{3}$/.test(close3) && /^\d{2}$/.test(double)) {
@@ -405,7 +399,6 @@ async function scrapeLatest(panel = 'MAIN_BAZAR') {
         const drawId = `${getPanelConfig(panel).key}_${date.toISOString().split('T')[0]}_${'NIGHT'}`;
         const datetime = date;
         const rawSource = $(lastRow).html();
-        const sourceUrl = sourceUrl;
         const fetchedAt = new Date();
 
         const result = {

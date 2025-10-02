@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const PredictionLog = require('../models/PredictionLog');
+const FetchLog = require('../models/FetchLog');
 
 // GET /api/predictions/log?drawId=... or ?panel=...&limit=...
 router.get('/predictions/log', async (req, res) => {
@@ -17,11 +18,6 @@ router.get('/predictions/log', async (req, res) => {
     res.status(500).json({ success: false, error: 'Failed to fetch prediction logs' });
   }
 });
-
-module.exports = router;
-const express = require('express');
-const router = express.Router();
-const FetchLog = require('../models/FetchLog');
 
 // GET /api/logs?drawId=xxx
 router.get('/', async (req, res) => {
