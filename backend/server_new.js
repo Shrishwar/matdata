@@ -14,6 +14,7 @@ const WebSocket = require('ws');
 const authRoutes = require('./routes/auth');
 const { router: resultRoutes, broadcastLatestUpdate } = require('./routes/results');
 const predictionRoutes = require('./routes/predictions');
+const historyRoutes = require('./routes/history');
 
 const app = express();
 
@@ -36,18 +37,7 @@ app.use('/api/auth', authLimiter); // Stricter for auth
 app.use('/api/auth', authRoutes);
 app.use('/api/results', resultRoutes);
 app.use('/api/predictions', predictionRoutes);
-
-// GET /api/history - returns sorted draws from DB
-app.get('/api/history', async (req, res) => {
-  try {
-    const Result = require('./models/Result');
-    const results = await Result.find().sort({ date: -1 }).limit(100);
-    res.json(results);
-  } catch (error) {
-    console.error('Error fetching history:', error);
-    res.status(500).json({ message: 'Error fetching history' });
-  }
-});
+app.use('/api', historyRoutes);
 
 // Serve static assets in production
 if (process.env.NODE_ENV === 'production') {

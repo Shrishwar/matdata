@@ -42,6 +42,24 @@ const upload = multer({ storage: multer.memoryStorage() });
 // SSE Event Emitter for broadcasting updates
 const sseEmitter = new EventEmitter();
 
+// @route   GET /api/panels
+// @desc    Get list of available panels
+// @access  Public
+router.get('/panels', async (req, res) => {
+  try {
+    const panels = [
+      { key: 'MAIN_BAZAR', name: 'Main Bazar' },
+      { key: 'KALYAN', name: 'Kalyan' },
+      { key: 'MILAN', name: 'Milan' },
+      { key: 'RAJDHANI', name: 'Rajdhani' }
+    ];
+    res.json({ panels });
+  } catch (error) {
+    console.error('Error fetching panels:', error);
+    res.status(500).json({ message: 'Server error fetching panels', error: error.message });
+  }
+});
+
 // @route   GET /api/results
 // @desc    Get latest 50 results (sorted by date desc)
 // @access  Public

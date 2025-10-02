@@ -1,13 +1,23 @@
-# Run and Test Project Plan
+# TODO: Full-Stack Matka Prediction Web App
 
-- [x] Install backend dependencies: cd backend && npm install
-- [x] Install backend prediction engine dependencies: cd backend/prediction-engine && npm install
-- [x] Install frontend dependencies: cd frontend && npm install
-- [x] Install Python dependencies: pip install -r requirements.txt
-- [x] Start MongoDB server (user action: run mongod in terminal)
-- [x] Seed the database: cd backend && npm run seed
-- [x] Run backend tests: cd backend && npm test
-- [x] Run backend prediction engine tests: cd backend/prediction-engine && npm test
-- [x] Run frontend tests: cd frontend && npm test
-- [x] Start backend server: cd backend && npm start
-- [x] Start frontend server: cd frontend && npm run dev
+## Backend Updates
+- [ ] Add /api/panels endpoint to return list of available panels
+- [ ] Modify /api/history to accept ?panel=NAME parameter and filter results by panel
+- [ ] Modify /api/predict to accept ?panel=NAME parameter and generate predictions for specific panel
+- [ ] Update prediction engine to load data filtered by panel
+
+## Frontend Updates
+- [ ] Install and configure shadcn/ui components
+- [ ] Update HomePage: Add dropdown for panel selection, show prediction card for selected panel
+- [ ] Create ChartPage: Embed DPBoss chart iframe, add visualizations (charts for frequency, trends)
+- [ ] Update HistoryPage: Add panel filter, show table for selected panel
+- [ ] Remove old code and ensure production-ready
+
+## Cleanup
+- [ ] Remove any fake/old prediction code (seems already using DPBoss data)
+- [ ] Ensure only DPBoss data is used
+
+## Testing
+- [ ] Test APIs with panel parameter
+- [ ] Verify frontend UI with shadcn components
+- [ ] Ensure production build works

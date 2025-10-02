@@ -44,7 +44,7 @@ class MongoService {
     }
   }
 
-  async getHistoricalData(days: number = 30): Promise<any[]> {
+  async getHistoricalData(days: number = 30, panel: string = 'MAIN_BAZAR'): Promise<any[]> {
     if (!this.collection) {
       throw new Error('Database not connected');
     }
@@ -53,12 +53,13 @@ class MongoService {
       const startDate = new Date();
       startDate.setDate(startDate.getDate() - days);
 
-      logger.info(`Querying for dates >= ${startDate.toISOString()}`);
+      logger.info(`Querying for dates >= ${startDate.toISOString()} and panel: ${panel}`);
 
       const results = await this.collection
         .find({
           // date: { $gte: startDate }, // Temporarily disabled for testing
-          middle: { $exists: true, $ne: null }
+          middle: { $exists: true, $ne: null },
+          panel: panel
         })
         .sort({ date: 1 })
         .limit(1000) // Limit to prevent too much data

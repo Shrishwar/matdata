@@ -75,3 +75,76 @@
 {"level":"info","message":"Successfully connected to MongoDB","service":"matka-prediction-engine","timestamp":"2025-10-01 11:46:19"}
 {"level":"info","message":"Querying for dates >= 2025-09-01T06:16:19.169Z","service":"matka-prediction-engine","timestamp":"2025-10-01 11:46:19"}
 {"level":"info","message":"Found 0 results with middle exists","service":"matka-prediction-engine","timestamp":"2025-10-01 11:46:19"}
+{"level":"info","message":"Generating predictions...","service":"matka-prediction-engine","timestamp":"2025-10-02 13:59:39"}
+{"level":"debug","message":"Stats - Mean: 49.15, Std: 29.24, Min: 0, Max: 97, Count: 100","service":"matka-prediction-engine","timestamp":"2025-10-02 13:59:39"}
+{"level":"debug","message":"Found 32 frequency components","service":"matka-prediction-engine","timestamp":"2025-10-02 13:59:40"}
+{"level":"debug","message":"Cluster sizes: 32, 28, 40","service":"matka-prediction-engine","timestamp":"2025-10-02 13:59:40"}
+{"level":"info","message":"Backtest accuracy: 20.00% on 10 samples","service":"matka-prediction-engine","timestamp":"2025-10-02 13:59:40"}
+{"level":"info","message":"Generating predictions...","service":"matka-prediction-engine","timestamp":"2025-10-02 13:59:40"}
+{"level":"debug","message":"Stats - Mean: 49.15, Std: 29.24, Min: 0, Max: 97, Count: 100","service":"matka-prediction-engine","timestamp":"2025-10-02 13:59:40"}
+{"level":"debug","message":"Found 32 frequency components","service":"matka-prediction-engine","timestamp":"2025-10-02 13:59:41"}
+{"level":"debug","message":"Cluster sizes: 43, 31, 26","service":"matka-prediction-engine","timestamp":"2025-10-02 13:59:41"}
+{"level":"info","message":"Backtest accuracy: 20.00% on 10 samples","service":"matka-prediction-engine","timestamp":"2025-10-02 13:59:41"}
+{"level":"info","message":"Generating predictions...","service":"matka-prediction-engine","timestamp":"2025-10-02 14:50:08"}
+{"level":"debug","message":"Stats - Mean: 49.15, Std: 29.24, Min: 0, Max: 97, Count: 100","service":"matka-prediction-engine","timestamp":"2025-10-02 14:50:08"}
+{"level":"debug","message":"Found 32 frequency components","service":"matka-prediction-engine","timestamp":"2025-10-02 14:50:09"}
+{"level":"debug","message":"Cluster sizes: 34, 39, 27","service":"matka-prediction-engine","timestamp":"2025-10-02 14:50:09"}
+{"level":"info","message":"Backtest accuracy: 20.00% on 10 samples","service":"matka-prediction-engine","timestamp":"2025-10-02 14:50:09"}
+{"level":"info","message":"Generating predictions...","service":"matka-prediction-engine","timestamp":"2025-10-02 14:50:10"}
+{"level":"debug","message":"Stats - Mean: 49.15, Std: 29.24, Min: 0, Max: 97, Count: 100","service":"matka-prediction-engine","timestamp":"2025-10-02 14:50:10"}
+{"level":"debug","message":"Found 32 frequency components","service":"matka-prediction-engine","timestamp":"2025-10-02 14:50:12"}
+{"level":"debug","message":"Cluster sizes: 39, 29, 32","service":"matka-prediction-engine","timestamp":"2025-10-02 14:50:12"}
+{"level":"info","message":"Backtest accuracy: 20.00% on 10 samples","service":"matka-prediction-engine","timestamp":"2025-10-02 14:50:12"}
+{"level":"info","message":"Generating predictions...","service":"matka-prediction-engine","timestamp":"2025-10-02 15:04:23"}
+{"level":"debug","message":"Stats - Mean: 48.85, Std: 28.61, Min: 0, Max: 99, Count: 2522","service":"matka-prediction-engine","timestamp":"2025-10-02 15:04:24"}
+{"level":"error","message":"Error training ML classifier: input must not be empty","service":"matka-prediction-engine","stack":"TypeError: input must not be empty\n    at Object.mode [as default] (C:\\Users\\admin\\OneDrive\\Desktop\\matdata\\matdata\\backend\\node_modules\\ml-array-mode\\lib\\index.js:10:11)\n    at RandomForestClassifier.selection (C:\\Users\\admin\\OneDrive\\Desktop\\matdata\\matdata\\backend\\node_modules\\ml-random-forest\\random-forest.js:549:41)\n    at collectOOB (C:\\Users\\admin\\OneDrive\\Desktop\\matdata\\matdata\\backend\\node_modules\\ml-random-forest\\random-forest.js:185:49)\n    at RandomForestClassifier.train (C:\\Users\\admin\\OneDrive\\Desktop\\matdata\\matdata\\backend\\node_modules\\ml-random-forest\\random-forest.js:360:25)\n    at MatkaPredictor.trainMLClassifier (file:///C:/Users/admin/OneDrive/Desktop/matdata/matdata/backend/prediction-engine/dist/services/prediction/matkaPredictor.js:454:21)\n    at async MatkaPredictor.generatePredictions (file:///C:/Users/admin/OneDrive/Desktop/matdata/matdata/backend/prediction-engine/dist/services/prediction/matkaPredictor.js:646:13)\n    at async C:\\Users\\admin\\OneDrive\\Desktop\\matdata\\matdata\\backend\\routes\\predictions.js:70:24","timestamp":"2025-10-02 15:06:24"}
+{"level":"debug","message":"Found 32 frequency components","service":"matka-prediction-engine","timestamp":"2025-10-02 15:06:24"}
+{"level":"debug","message":"Cluster sizes: 933, 778, 811","service":"matka-prediction-engine","timestamp":"2025-10-02 15:06:24"}
+{"level":"info","message":"Backtest accuracy: 10.00% on 10 samples","service":"matka-prediction-engine","timestamp":"2025-10-02 15:06:24"}
+{"level":"info","message":"Generating predictions...","service":"matka-prediction-engine","timestamp":"2025-10-02 15:06:25"}
+{"level":"debug","message":"Stats - Mean: 48.88, Std: 29.65, Min: 0, Max: 98, Count: 282","service":"matka-prediction-engine","timestamp":"2025-10-02 15:06:25"}
+{"level":"error","message":"Error training ML classifier: input must not be empty","service":"matka-prediction-engine","stack":"TypeError: input must not be empty\n    at Object.mode [as default] (C:\\Users\\admin\\OneDrive\\Desktop\\matdata\\matdata\\backend\\node_modules\\ml-array-mode\\lib\\index.js:10:11)\n    at RandomForestClassifier.selection (C:\\Users\\admin\\OneDrive\\Desktop\\matdata\\matdata\\backend\\node_modules\\ml-random-forest\\random-forest.js:549:41)\n    at collectOOB (C:\\Users\\admin\\OneDrive\\Desktop\\matdata\\matdata\\backend\\node_modules\\ml-random-forest\\random-forest.js:185:49)\n    at RandomForestClassifier.train (C:\\Users\\admin\\OneDrive\\Desktop\\matdata\\matdata\\backend\\node_modules\\ml-random-forest\\random-forest.js:360:25)\n    at MatkaPredictor.trainMLClassifier (file:///C:/Users/admin/OneDrive/Desktop/matdata/matdata/backend/prediction-engine/dist/services/prediction/matkaPredictor.js:454:21)\n    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)\n    at async MatkaPredictor.generatePredictions (file:///C:/Users/admin/OneDrive/Desktop/matdata/matdata/backend/prediction-engine/dist/services/prediction/matkaPredictor.js:646:13)\n    at async C:\\Users\\admin\\OneDrive\\Desktop\\matdata\\matdata\\backend\\routes\\predictions.js:494:24","timestamp":"2025-10-02 15:06:30"}
+{"level":"debug","message":"Found 32 frequency components","service":"matka-prediction-engine","timestamp":"2025-10-02 15:06:30"}
+{"level":"debug","message":"Cluster sizes: 87, 103, 92","service":"matka-prediction-engine","timestamp":"2025-10-02 15:06:30"}
+{"level":"info","message":"Backtest accuracy: 40.00% on 10 samples","service":"matka-prediction-engine","timestamp":"2025-10-02 15:06:30"}
+{"level":"info","message":"Generating predictions...","service":"matka-prediction-engine","timestamp":"2025-10-02 15:06:31"}
+{"level":"debug","message":"Stats - Mean: 48.88, Std: 29.65, Min: 0, Max: 98, Count: 282","service":"matka-prediction-engine","timestamp":"2025-10-02 15:06:31"}
+{"level":"error","message":"Error training ML classifier: input must not be empty","service":"matka-prediction-engine","stack":"TypeError: input must not be empty\n    at Object.mode [as default] (C:\\Users\\admin\\OneDrive\\Desktop\\matdata\\matdata\\backend\\node_modules\\ml-array-mode\\lib\\index.js:10:11)\n    at RandomForestClassifier.selection (C:\\Users\\admin\\OneDrive\\Desktop\\matdata\\matdata\\backend\\node_modules\\ml-random-forest\\random-forest.js:549:41)\n    at collectOOB (C:\\Users\\admin\\OneDrive\\Desktop\\matdata\\matdata\\backend\\node_modules\\ml-random-forest\\random-forest.js:185:49)\n    at RandomForestClassifier.train (C:\\Users\\admin\\OneDrive\\Desktop\\matdata\\matdata\\backend\\node_modules\\ml-random-forest\\random-forest.js:360:25)\n    at MatkaPredictor.trainMLClassifier (file:///C:/Users/admin/OneDrive/Desktop/matdata/matdata/backend/prediction-engine/dist/services/prediction/matkaPredictor.js:454:21)\n    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)\n    at async MatkaPredictor.generatePredictions (file:///C:/Users/admin/OneDrive/Desktop/matdata/matdata/backend/prediction-engine/dist/services/prediction/matkaPredictor.js:646:13)\n    at async C:\\Users\\admin\\OneDrive\\Desktop\\matdata\\matdata\\backend\\routes\\predictions.js:720:22","timestamp":"2025-10-02 15:06:36"}
+{"level":"debug","message":"Found 32 frequency components","service":"matka-prediction-engine","timestamp":"2025-10-02 15:06:37"}
+{"level":"debug","message":"Cluster sizes: 85, 95, 102","service":"matka-prediction-engine","timestamp":"2025-10-02 15:06:37"}
+{"level":"info","message":"Backtest accuracy: 40.00% on 10 samples","service":"matka-prediction-engine","timestamp":"2025-10-02 15:06:37"}
+{"level":"info","message":"Generating predictions...","service":"matka-prediction-engine","timestamp":"2025-10-02 15:10:00"}
+{"level":"debug","message":"Stats - Mean: 49.15, Std: 29.24, Min: 0, Max: 97, Count: 100","service":"matka-prediction-engine","timestamp":"2025-10-02 15:10:00"}
+{"level":"debug","message":"Found 32 frequency components","service":"matka-prediction-engine","timestamp":"2025-10-02 15:10:01"}
+{"level":"debug","message":"Cluster sizes: 28, 40, 32","service":"matka-prediction-engine","timestamp":"2025-10-02 15:10:01"}
+{"level":"info","message":"Backtest accuracy: 20.00% on 10 samples","service":"matka-prediction-engine","timestamp":"2025-10-02 15:10:01"}
+{"level":"info","message":"Generating predictions...","service":"matka-prediction-engine","timestamp":"2025-10-02 15:10:01"}
+{"level":"debug","message":"Stats - Mean: 49.15, Std: 29.24, Min: 0, Max: 97, Count: 100","service":"matka-prediction-engine","timestamp":"2025-10-02 15:10:01"}
+{"level":"debug","message":"Found 32 frequency components","service":"matka-prediction-engine","timestamp":"2025-10-02 15:10:03"}
+{"level":"debug","message":"Cluster sizes: 41, 28, 31","service":"matka-prediction-engine","timestamp":"2025-10-02 15:10:03"}
+{"level":"info","message":"Backtest accuracy: 20.00% on 10 samples","service":"matka-prediction-engine","timestamp":"2025-10-02 15:10:03"}
+{"level":"info","message":"Generating predictions...","service":"matka-prediction-engine","timestamp":"2025-10-02 15:10:05"}
+{"level":"debug","message":"Stats - Mean: 49.15, Std: 29.24, Min: 0, Max: 97, Count: 100","service":"matka-prediction-engine","timestamp":"2025-10-02 15:10:05"}
+{"level":"debug","message":"Found 32 frequency components","service":"matka-prediction-engine","timestamp":"2025-10-02 15:10:06"}
+{"level":"debug","message":"Cluster sizes: 26, 31, 43","service":"matka-prediction-engine","timestamp":"2025-10-02 15:10:06"}
+{"level":"info","message":"Backtest accuracy: 20.00% on 10 samples","service":"matka-prediction-engine","timestamp":"2025-10-02 15:10:06"}
+{"level":"info","message":"Generating predictions...","service":"matka-prediction-engine","timestamp":"2025-10-02 15:10:06"}
+{"level":"debug","message":"Stats - Mean: 49.15, Std: 29.24, Min: 0, Max: 97, Count: 100","service":"matka-prediction-engine","timestamp":"2025-10-02 15:10:06"}
+{"level":"debug","message":"Found 32 frequency components","service":"matka-prediction-engine","timestamp":"2025-10-02 15:10:07"}
+{"level":"debug","message":"Cluster sizes: 45, 28, 27","service":"matka-prediction-engine","timestamp":"2025-10-02 15:10:07"}
+{"level":"info","message":"Backtest accuracy: 20.00% on 10 samples","service":"matka-prediction-engine","timestamp":"2025-10-02 15:10:07"}
+{"level":"info","message":"Generating predictions...","service":"matka-prediction-engine","timestamp":"2025-10-02 15:10:47"}
+{"level":"debug","message":"Stats - Mean: 49.15, Std: 29.24, Min: 0, Max: 97, Count: 100","service":"matka-prediction-engine","timestamp":"2025-10-02 15:10:47"}
+{"level":"debug","message":"Found 32 frequency components","service":"matka-prediction-engine","timestamp":"2025-10-02 15:10:48"}
+{"level":"debug","message":"Cluster sizes: 26, 43, 31","service":"matka-prediction-engine","timestamp":"2025-10-02 15:10:48"}
+{"level":"info","message":"Backtest accuracy: 20.00% on 10 samples","service":"matka-prediction-engine","timestamp":"2025-10-02 15:10:48"}
+{"level":"info","message":"Generating predictions...","service":"matka-prediction-engine","timestamp":"2025-10-02 15:10:48"}
+{"level":"debug","message":"Stats - Mean: 49.15, Std: 29.24, Min: 0, Max: 97, Count: 100","service":"matka-prediction-engine","timestamp":"2025-10-02 15:10:48"}
+{"level":"debug","message":"Found 32 frequency components","service":"matka-prediction-engine","timestamp":"2025-10-02 15:10:48"}
+{"level":"debug","message":"Cluster sizes: 25, 40, 35","service":"matka-prediction-engine","timestamp":"2025-10-02 15:10:48"}
+{"level":"info","message":"Backtest accuracy: 20.00% on 10 samples","service":"matka-prediction-engine","timestamp":"2025-10-02 15:10:48"}
+{"level":"info","message":"Generating predictions...","service":"matka-prediction-engine","timestamp":"2025-10-02 15:10:55"}
+{"level":"debug","message":"Stats - Mean: 49.15, Std: 29.24, Min: 0, Max: 97, Count: 100","service":"matka-prediction-engine","timestamp":"2025-10-02 15:10:55"}
+{"level":"debug","message":"Found 32 frequency components","service":"matka-prediction-engine","timestamp":"2025-10-02 15:10:55"}
+{"level":"debug","message":"Cluster sizes: 38, 31, 31","service":"matka-prediction-engine","timestamp":"2025-10-02 15:10:55"}
+{"level":"info","message":"Backtest accuracy: 20.00% on 10 samples","service":"matka-prediction-engine","timestamp":"2025-10-02 15:10:55"}

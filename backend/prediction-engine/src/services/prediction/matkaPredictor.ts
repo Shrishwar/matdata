@@ -174,22 +174,23 @@ class MatkaPredictor {
   /**
    * Load historical data from MongoDB
    * @param timeRange Time range to load data for (e.g., '30d' for 30 days)
+   * @param panel Panel to load data for (e.g., 'MAIN_BAZAR')
    * @returns Array of historical data points
    */
-  async loadData(timeRange: string = '30d'): Promise<HistoricalData[]> {
+  async loadData(timeRange: string = '30d', panel: string = 'MAIN_BAZAR'): Promise<HistoricalData[]> {
     logger.info('Loading historical data from MongoDB...');
-    
+
     try {
       // Connect to MongoDB if not already connected
       await mongoService.connect();
-      
+
       // Parse time range
-      const days = timeRange.endsWith('d') 
-        ? parseInt(timeRange.slice(0, -1), 10) 
+      const days = timeRange.endsWith('d')
+        ? parseInt(timeRange.slice(0, -1), 10)
         : 30; // Default to 30 days
-      
+
       // Fetch data from MongoDB
-      const dbData = await mongoService.getHistoricalData(days);
+      const dbData = await mongoService.getHistoricalData(days, panel);
       
       if (dbData.length === 0) {
         logger.warn('No historical data found in database. Predictions require real historical data from DPBoss.');
