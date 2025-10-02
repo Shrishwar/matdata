@@ -7,7 +7,7 @@ class DpbossSync {
   constructor(broadcastToWS = null) {
     this.intervalId = null;
     this.isRunning = false;
-    this.fetchIntervalMinutes = process.env.FETCH_INTERVAL_MINUTES || 5; // Default 5 minutes
+    this.fetchIntervalMinutes = process.env.FETCH_INTERVAL_MINUTES || 2; // Default 2 minutes
     this.previousLatest = null;
     this.broadcastToWS = broadcastToWS;
   }

@@ -34,6 +34,13 @@ interface Prediction {
   confidence: number;
 }
 
+const PANELS = [
+  { key: 'MAIN_BAZAR', name: 'Main Bazar' },
+  { key: 'KALYAN', name: 'Kalyan' },
+  { key: 'MILAN', name: 'Milan' },
+  { key: 'RAJDHANI', name: 'Rajdhani' }
+];
+
 const PredictionsPage = () => {
   const [predictions, setPredictions] = useState<Prediction[]>([]);
   const [analysis, setAnalysis] = useState<any>(null);
@@ -43,13 +50,16 @@ const PredictionsPage = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const [activeTab, setActiveTab] = useState<'predictions' | 'analysis'>('predictions');
+  const [selectedPanel, setSelectedPanel] = useState('MAIN_BAZAR');
+  const [latestResult, setLatestResult] = useState<any>(null);
+  const [latestLoading, setLatestLoading] = useState(false);
   const { user } = useAuth();
 
   const fetchPredictions = async () => {
     try {
       setIsLoading(true);
       console.log('Fetching predictions...');
-      const response = await predictionApi.getPredictions(3);
+      const response = await predictionApi.getPredictions(3, selectedPanel);
       console.log('Predictions response:', response);
       
       if (response.success) {
@@ -95,6 +105,31 @@ const PredictionsPage = () => {
     }
   };
 
+  const fetchLatestResult = async () => {
+    try {
+      setLatestLoading(true);
+      console.log(`Fetching latest result for ${selectedPanel}...`);
+      const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/predictions/latest?panel=${selectedPanel}`, {
+        headers: { 'Cache-Control': 'no-cache' },
+      });
+      const data = await response.json();
+      console.log('Latest result response:', data);
+
+      if (data.success) {
+        setLatestResult(data.data);
+      } else {
+        setLatestResult(null);
+        toast.error(data.message || 'Failed to fetch latest result');
+      }
+    } catch (error) {
+      console.error('Error fetching latest result:', error);
+      setLatestResult(null);
+      toast.error('Error fetching latest result');
+    } finally {
+      setLatestLoading(false);
+    }
+  };
+
   const fetchLiveData = async () => {
     try {
       setLiveLoading(true);
@@ -104,7 +139,7 @@ const PredictionsPage = () => {
       });
       const data = await response.json();
       console.log('Live data response:', data);
-      
+
       if (data.ok) {
         setLiveData(data.latest);
       } else {
@@ -120,8 +155,9 @@ const PredictionsPage = () => {
 
   useEffect(() => {
     fetchLiveData();
+    fetchLatestResult();
     fetchPredictions();
-  }, []);
+  }, [selectedPanel]);
 
   // Auto-refresh every 5 minutes if data is loaded
   useEffect(() => {
@@ -221,7 +257,16 @@ const PredictionsPage = () => {
       <div className="bg-white rounded-lg shadow-md p-6">
         <div className="flex justify-between items-center mb-6">
           <h1 className="text-2xl font-bold text-gray-800">Next Number Predictions</h1>
-          <div className="flex space-x-2">
+          <div className="flex space-x-4 items-center">
+            <select
+              value={selectedPanel}
+              onChange={(e) => setSelectedPanel(e.target.value)}
+              className="border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              {PANELS.map(panel => (
+                <option key={panel.key} value={panel.key}>{panel.name}</option>
+              ))}
+            </select>
             <button
               onClick={() => setActiveTab('predictions')}
               className={`px-4 py-2 rounded-md ${
@@ -278,6 +323,57 @@ const PredictionsPage = () => {
           <p className="text-sm text-gray-500 mb-6">
             Last updated: {lastUpdated.toLocaleString()}
           </p>
+        )}
+
+        {/* DPBoss Live Chart Iframe */}
+        <div className="mb-6">
+          <h2 className="text-lg font-semibold text-gray-800 mb-4">Live DPBoss Chart - {PANELS.find(p => p.key === selectedPanel)?.name}</h2>
+          <div className="bg-white border rounded-lg p-4">
+            <iframe
+              src={`https://dpboss.boston/panel-chart-record/${selectedPanel.toLowerCase().replace('_', '-')}.php?full_chart`}
+              width="100%"
+              height="600"
+              frameBorder="0"
+              title={`DPBoss ${PANELS.find(p => p.key === selectedPanel)?.name} Chart`}
+              className="rounded-lg"
+            ></iframe>
+          </div>
+        </div>
+
+        {/* Latest Result Display */}
+        {latestResult && !latestLoading && (
+          <div className="mb-6 bg-blue-50 border-l-4 border-blue-400 p-4">
+            <div className="flex">
+              <div className="flex-shrink-0">
+                <svg className="h-5 w-5 text-blue-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                </svg>
+              </div>
+              <div className="ml-3">
+                <p className="text-sm text-blue-700">
+                  <strong>Latest {PANELS.find(p => p.key === selectedPanel)?.name} Result:</strong> {latestResult.double ? latestResult.double : 'N/A'}
+                  {latestResult.date && <span className="ml-2">on {new Date(latestResult.date).toLocaleDateString()}</span>}
+                  {latestResult.open3d && <span className="ml-2">(Open: {latestResult.open3d}, Close: {latestResult.close3d})</span>}
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {latestLoading && (
+          <div className="mb-6 bg-gray-50 border-l-4 border-gray-400 p-4">
+            <div className="flex">
+              <div className="flex-shrink-0">
+                <svg className="animate-spin h-5 w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+              </div>
+              <div className="ml-3">
+                <p className="text-sm text-gray-700">Loading latest result...</p>
+              </div>
+            </div>
+          </div>
         )}
 
         {liveData && !liveLoading && (

@@ -265,7 +265,7 @@ async function getLiveExtracted(panel = 'MAIN_BAZAR') {
 
       // Run Python script to fetch live data
       const pythonScriptPath = path.resolve(__dirname, 'fetch_live_data.py');
-      const pythonExecutable = 'python3'; // or full path to python executable if needed
+      const pythonExecutable = process.platform === 'win32' ? 'python' : 'python3'; // Use 'python' on Windows, 'python3' on Unix-like systems
 
       const liveData = await new Promise((resolve, reject) => {
         execFile(pythonExecutable, [pythonScriptPath], (error, stdout, stderr) => {

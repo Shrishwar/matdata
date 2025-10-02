@@ -6,7 +6,7 @@ const { auth, admin } = require('../middleware/auth');
 const Result = require('../models/Result');
 const logger = require('../utils/logger');
 const { validationResult, query } = require('express-validator');
-const { getLiveExtracted } = require('../services/scraper/dpbossScraper');
+const { getLiveExtracted, scrapeLatest } = require('../services/scraper/dpbossScraper');
 
 // Constants for live predictions
 const LIVE_CONSTANTS = {
@@ -597,11 +597,44 @@ router.get('/combined',
       // Combined score: AI + Human weight (scaled) with deterministic weights
       const combined = universe.map((_, i) => 0.6 * aiProb[i] + 0.4 * humanWeight[i]);
 
-      // Rank and prepare explanations
+      // Compute support signals per number from independent logics
+      const median = arr => {
+        const sorted = [...arr].sort((a, b) => a - b);
+        const mid = Math.floor(sorted.length / 2);
+        return sorted.length % 2 === 0 ? (sorted[mid - 1] + sorted[mid]) / 2 : sorted[mid];
+      };
+
+      const freqMed = median(freqN);
+      const gapMed = median(gapN);
+      const transMed = median(transN);
+      const digitMed = median(digitN);
+      const runsMed = median(runsN);
+      const aiMed = median(aiProb);
+
+      const supportSignals = universe.map((n, i) => {
+        const signals = {
+          ai: aiProb[i] >= aiMed,
+          frequency: freqN[i] >= freqMed,
+          transition: transN[i] >= transMed,
+          gap: gapN[i] >= gapMed,
+          digitBalance: digitN[i] >= digitMed,
+          runs: runsN[i] >= runsMed,
+        };
+        const supportCount = Object.values(signals).reduce((s, v) => s + (v ? 1 : 0), 0);
+        return { n, i, signals, supportCount };
+      });
+
+      // Rank by combined score, then enforce 3-logic support filter
       const ranked = universe
         .map(n => ({ n, score: combined[n] }))
-        .sort((a, b) => b.score - a.score)
-        .slice(0, limit);
+        .sort((a, b) => b.score - a.score);
+
+      const filtered = [];
+      for (const r of ranked) {
+        const sup = supportSignals[r.n];
+        if (sup && sup.supportCount >= 3) filtered.push(r);
+        if (filtered.length >= limit) break;
+      }
 
       const toPct = (x) => Math.round(Math.max(0, Math.min(1, x)) * 100);
 
@@ -631,11 +664,17 @@ router.get('/combined',
       const response = {
         success: true,
         data: {
-          top: ranked.map(r => ({
+          top: filtered.map(r => ({
             number: r.n,
             confidence: toPct(r.score),
             human: humanExplain(r.n),
-            system: systemExplain(r.n),
+            system: [
+              ...systemExplain(r.n),
+              `Supported by ≥3 logics: ${Object.entries(supportSignals[r.n].signals)
+                .filter(([, v]) => v)
+                .map(([k]) => k)
+                .join(', ')}`,
+            ],
           })),
           provenance: {
             source: 'dpboss-history',
@@ -769,6 +808,138 @@ router.post('/full',
     } catch (error) {
       logger.error('Full pipeline error:', { error: error.message, stack: error.stack });
       res.status(500).json({ success: false, error: 'Failed to run full prediction pipeline' });
+    }
+  }
+);
+
+/**
+ * @route   GET /api/predictions/latest
+ * @desc    Get latest result for a panel from DPBoss
+ * @access  Public
+ */
+router.get('/latest',
+  validate([
+    query('panel').optional().isString().isLength({ min: 3, max: 40 })
+  ]),
+  async (req, res) => {
+    try {
+      const panel = (req.query.panel || 'MAIN_BAZAR').toUpperCase();
+
+      logger.info(`Fetching latest result for panel: ${panel}`);
+
+      // Fetch latest result from DPBoss
+      const latestResult = await scrapeLatest(panel);
+
+      if (!latestResult) {
+        return res.status(404).json({
+          success: false,
+          error: 'No latest result found',
+          message: 'Unable to fetch latest result from DPBoss. It may be an off-day or data unavailable.'
+        });
+      }
+
+      // Format response
+      const response = {
+        success: true,
+        data: {
+          panel: latestResult.panel,
+          session: latestResult.session,
+          drawId: latestResult.drawId,
+          date: latestResult.date,
+          open3d: latestResult.open3d,
+          close3d: latestResult.close3d,
+          middle: latestResult.middle,
+          double: latestResult.double,
+          openSum: latestResult.openSum,
+          closeSum: latestResult.closeSum,
+          fetchedAt: latestResult.fetchedAt
+        }
+      };
+
+      res.json(response);
+    } catch (error) {
+      logger.error('Latest result fetch error:', { error: error.message, stack: error.stack });
+      res.status(500).json({
+        success: false,
+        error: 'Failed to fetch latest result',
+        message: 'Unable to retrieve latest result from DPBoss',
+        details: process.env.NODE_ENV === 'development' ? error.message : undefined
+      });
+    }
+  }
+);
+
+/**
+ * @route   GET /api/predictions/history
+ * @desc    Get last N valid results for a panel (skipping off-days)
+ * @access  Public
+ */
+router.get('/history',
+  validate([
+    query('panel').optional().isString().isLength({ min: 3, max: 40 }),
+    query('limit').optional().isInt({ min: 1, max: 200 }).withMessage('Limit must be between 1 and 200')
+  ]),
+  async (req, res) => {
+    try {
+      const panel = (req.query.panel || 'MAIN_BAZAR').toUpperCase();
+      const limit = parseInt(req.query.limit) || 100;
+
+      logger.info(`Fetching last ${limit} valid results for panel: ${panel}`);
+
+      // Fetch results from DB, skipping off-days (weekends)
+      const results = await Result.find({
+        panel,
+        // Skip Saturdays (6) and Sundays (0)
+        $expr: {
+          $nin: [{ $dayOfWeek: '$date' }, [1, 7]] // MongoDB: 1=Sunday, 7=Saturday
+        }
+      })
+        .sort({ date: -1 })
+        .limit(limit)
+        .lean();
+
+      if (!results || results.length === 0) {
+        return res.status(404).json({
+          success: false,
+          error: 'No history found',
+          message: `No valid results found for panel ${panel}. Please ensure data is synced from DPBoss.`
+        });
+      }
+
+      // Format response
+      const formattedResults = results.map(result => ({
+        panel: result.panel,
+        session: result.session,
+        drawId: result.drawId,
+        date: result.date,
+        open3d: result.open3d,
+        close3d: result.close3d,
+        middle: result.middle,
+        double: result.double,
+        openSum: result.openSum,
+        closeSum: result.closeSum,
+        fetchedAt: result.fetchedAt
+      }));
+
+      const response = {
+        success: true,
+        data: {
+          panel,
+          results: formattedResults,
+          count: formattedResults.length,
+          requestedLimit: limit
+        }
+      };
+
+      res.json(response);
+    } catch (error) {
+      logger.error('History fetch error:', { error: error.message, stack: error.stack });
+      res.status(500).json({
+        success: false,
+        error: 'Failed to fetch history',
+        message: 'Unable to retrieve history from database',
+        details: process.env.NODE_ENV === 'development' ? error.message : undefined
+      });
     }
   }
 );

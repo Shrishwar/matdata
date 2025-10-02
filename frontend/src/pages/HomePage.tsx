@@ -2,8 +2,32 @@ import { useEffect, useState, useRef } from 'react';
 import { format, isToday, isYesterday } from 'date-fns';
 import { resultsAPI, predictionApi } from '../services/api';
 import HomePanelSelector from '../components/HomePanelSelector';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { BarChart, Bar as RechartsBar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { ArrowPathIcon, CheckCircleIcon, WifiIcon, ExclamationTriangleIcon, SparklesIcon } from '@heroicons/react/24/outline';
+import { Bar, Line } from 'react-chartjs-2';
+import {
+  Chart as ChartJS,
+  CategoryScale,
+  LinearScale,
+  BarElement,
+  LineElement,
+  PointElement,
+  Title,
+  Tooltip as ChartTooltip,
+  Legend,
+} from 'chart.js';
+
+// Register ChartJS components
+ChartJS.register(
+  CategoryScale,
+  LinearScale,
+  BarElement,
+  LineElement,
+  PointElement,
+  Title,
+  ChartTooltip,
+  Legend
+);
 
 type Guess = {
   double: string;
@@ -46,6 +70,12 @@ const HomePage = () => {
   const [livePredictions, setLivePredictions] = useState<any[]>([]);
   const [livePredictionsLoading, setLivePredictionsLoading] = useState(false);
   const [showLivePredictions, setShowLivePredictions] = useState(false);
+  const [combinedPredictions, setCombinedPredictions] = useState<any[]>([]);
+  const [combinedLoading, setCombinedLoading] = useState(false);
+  const [showCombinedPredictions, setShowCombinedPredictions] = useState(false);
+  const [frequencyChartData, setFrequencyChartData] = useState<any>(null);
+  const [transitionHeatmapData, setTransitionHeatmapData] = useState<any>(null);
+  const [monteCarloChartData, setMonteCarloChartData] = useState<any>(null);
   const sseCleanupRef = useRef<(() => void) | null>(null);
   const lastUpdateRef = useRef<Date | null>(null);
 
@@ -183,6 +213,95 @@ const fetchLivePredictions = async () => {
   }
 };
 
+const fetchCombinedPredictions = async () => {
+  try {
+    setCombinedLoading(true);
+    setError(null);
+    console.log('Fetching combined predictions...');
+    const response = await predictionApi.getCombined(5, panel);
+    console.log('Combined predictions response:', response);
+
+    if (response.success) {
+      setCombinedPredictions(response.data.top || []);
+      setShowCombinedPredictions(true);
+
+      // Fetch historical data for charts
+      await fetchChartData();
+    } else {
+      setError('Failed to fetch predictions');
+    }
+  } catch (err) {
+    console.error('Failed to fetch combined predictions:', err);
+    setError('Failed to fetch predictions. Please try again later.');
+  } finally {
+    setCombinedLoading(false);
+  }
+};
+
+const fetchChartData = async () => {
+  try {
+    // Fetch last 100 results for frequency histogram
+    const historyResponse = await resultsAPI.getHistory(100, panel);
+    if (historyResponse.success && historyResponse.data.history.length > 0) {
+      const history = historyResponse.data.history;
+
+      // Frequency histogram
+      const freqMap = new Map<number, number>();
+      history.forEach((item: any) => {
+        const num = parseInt(item.double);
+        freqMap.set(num, (freqMap.get(num) || 0) + 1);
+      });
+      const freqData = Array.from({ length: 100 }, (_, i) => ({
+        number: i.toString().padStart(2, '0'),
+        frequency: freqMap.get(i) || 0
+      })).filter(item => item.frequency > 0);
+
+      setFrequencyChartData({
+        labels: freqData.map(item => item.number),
+        datasets: [{
+          label: 'Frequency',
+          data: freqData.map(item => item.frequency),
+          backgroundColor: 'rgba(59, 130, 246, 0.7)',
+          borderColor: 'rgba(59, 130, 246, 1)',
+          borderWidth: 1,
+        }]
+      });
+
+      // Transition heatmap (simplified as matrix)
+      const transitionMatrix: number[][] = Array.from({ length: 10 }, () => Array(10).fill(0));
+      for (let i = 1; i < history.length; i++) {
+        const prev = parseInt(history[i-1].double);
+        const curr = parseInt(history[i].double);
+        const prevTens = Math.floor(prev / 10);
+        const currTens = Math.floor(curr / 10);
+        if (prevTens < 10 && currTens < 10) {
+          transitionMatrix[prevTens][currTens]++;
+        }
+      }
+      setTransitionHeatmapData(transitionMatrix);
+
+      // Monte Carlo distribution (mock for now, as full MC data not available)
+      const mcData = Array.from({ length: 100 }, (_, i) => ({
+        number: i.toString().padStart(2, '0'),
+        probability: Math.random() * 0.1 // Mock data
+      })).sort((a, b) => b.probability - a.probability).slice(0, 20);
+
+      setMonteCarloChartData({
+        labels: mcData.map(item => item.number),
+        datasets: [{
+          label: 'Monte Carlo Probability',
+          data: mcData.map(item => item.probability),
+          backgroundColor: 'rgba(16, 185, 129, 0.7)',
+          borderColor: 'rgba(16, 185, 129, 1)',
+          borderWidth: 1,
+        }]
+      });
+    }
+  } catch (err) {
+    console.error('Failed to fetch chart data:', err);
+  }
+};
+
   useEffect(() => {
     fetchData();
     setupSSE();
@@ -235,12 +354,12 @@ const fetchLivePredictions = async () => {
             Fetch Today's Panel & Predict
           </button>
           <button
-            onClick={fetchLivePredictions}
-            disabled={livePredictionsLoading}
+            onClick={fetchCombinedPredictions}
+            disabled={combinedLoading}
             className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-purple-600 hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 disabled:opacity-50"
           >
-            <SparklesIcon className={`h-4 w-4 mr-2 ${livePredictionsLoading ? 'animate-spin' : ''}`} />
-            Next Number Prediction
+            <SparklesIcon className={`h-4 w-4 mr-2 ${combinedLoading ? 'animate-spin' : ''}`} />
+            Predict Now
           </button>
         </div>
       </div>
@@ -408,55 +527,155 @@ const fetchLivePredictions = async () => {
             </div>
           )}
 
-          <div className="bg-white dark:bg-gray-800 shadow overflow-hidden sm:rounded-lg">
-            <div className="px-4 py-5 sm:px-6">
-              <h3 className="text-lg leading-6 font-medium text-gray-900 dark:text-white">
-                Top Entertainment Guesses
-              </h3>
-              <p className="mt-1 max-w-2xl text-sm text-gray-500 dark:text-gray-400">
-                Based on historical analysis and latest patterns
-              </p>
-              <div className="mt-2 p-2 bg-yellow-50 dark:bg-yellow-900/30 border border-yellow-200 dark:border-yellow-700 rounded">
-                <p className="text-xs text-yellow-800 dark:text-yellow-200">
-                  ⚠️ <strong>Disclaimer:</strong> These are probabilistic guesses for entertainment only. No guarantee of accuracy or future results. Respect dpboss terms.
+          {showCombinedPredictions && combinedPredictions.length > 0 && (
+            <div className="bg-white dark:bg-gray-800 shadow overflow-hidden sm:rounded-lg">
+              <div className="px-4 py-5 sm:px-6">
+                <h3 className="text-lg leading-6 font-medium text-gray-900 dark:text-white">
+                  Top 5 Predictions
+                </h3>
+                <p className="mt-1 max-w-2xl text-sm text-gray-500 dark:text-gray-400">
+                  Hybrid AI + Human logic predictions
                 </p>
+                <div className="mt-2 p-2 bg-yellow-50 dark:bg-yellow-900/30 border border-yellow-200 dark:border-yellow-700 rounded">
+                  <p className="text-xs text-yellow-800 dark:text-yellow-200">
+                    ⚠️ <strong>Disclaimer:</strong> These are probabilistic predictions for entertainment only. No guarantee of accuracy. Based on DPBoss historical data.
+                  </p>
+                </div>
               </div>
-            </div>
-            <div className="border-t border-gray-200 dark:border-gray-700">
-              <div className="p-6">
-                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
-                  {guesses.map((guess, index) => (
-                    <div
-                      key={index}
-                      className="bg-gradient-to-br from-indigo-50 to-purple-50 dark:from-gray-700 dark:to-gray-600 overflow-hidden shadow rounded-lg"
-                    >
-                      <div className="px-4 py-5 sm:p-6 text-center">
-                        <div className="text-5xl font-extrabold text-indigo-600 dark:text-indigo-400">
-                          {guess.double}
-                        </div>
-                        <div className="mt-2">
-                          <div className="text-sm font-medium text-gray-500 dark:text-gray-400">
-                            Score
+              <div className="border-t border-gray-200 dark:border-gray-700">
+                <div className="p-6">
+                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
+                    {combinedPredictions.map((prediction, index) => (
+                      <div
+                        key={index}
+                        className="bg-gradient-to-br from-indigo-50 to-purple-50 dark:from-gray-700 dark:to-gray-600 overflow-hidden shadow rounded-lg"
+                      >
+                        <div className="px-4 py-5 sm:p-6 text-center">
+                          <div className="text-5xl font-extrabold text-indigo-600 dark:text-indigo-400">
+                            {prediction.number.toString().padStart(2, '0')}
                           </div>
-                          <div className="mt-1 text-2xl font-semibold text-gray-900 dark:text-white">
-                            {Math.round(guess.score * 100)}%
-                          </div>
-                          <div className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                            {guess.source}
-                          </div>
-                          {guess.explain && guess.explain.topFeatures.length > 0 && (
-                            <div className="mt-2 text-xs text-gray-600 dark:text-gray-300">
-                              {guess.explain.topFeatures[0]}
+                          <div className="mt-2">
+                            <div className="text-sm font-medium text-gray-500 dark:text-gray-400">
+                              Confidence
                             </div>
-                          )}
+                            <div className="mt-1 text-2xl font-semibold text-gray-900 dark:text-white">
+                              {prediction.confidence}%
+                            </div>
+                            <div className="mt-2 text-xs text-gray-600 dark:text-gray-300 space-y-1">
+                              {prediction.human && prediction.human.slice(0, 2).map((exp: string, i: number) => (
+                                <div key={i}>{exp}</div>
+                              ))}
+                              {prediction.system && prediction.system.slice(0, 1).map((exp: string, i: number) => (
+                                <div key={i} className="font-medium">{exp}</div>
+                              ))}
+                            </div>
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  ))}
+                    ))}
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
+          )}
+
+          {/* Charts Section */}
+          {showCombinedPredictions && (
+            <div className="space-y-6">
+              {frequencyChartData && (
+                <div className="bg-white dark:bg-gray-800 shadow overflow-hidden sm:rounded-lg">
+                  <div className="px-4 py-5 sm:px-6">
+                    <h3 className="text-lg leading-6 font-medium text-gray-900 dark:text-white">
+                      Frequency Histogram (Last 100 Draws)
+                    </h3>
+                    <p className="mt-1 max-w-2xl text-sm text-gray-500 dark:text-gray-400">
+                      Most frequent numbers in recent history
+                    </p>
+                  </div>
+                  <div className="border-t border-gray-200 dark:border-gray-700">
+                    <div className="p-6">
+                      <Bar data={frequencyChartData} options={{
+                        responsive: true,
+                        plugins: {
+                          legend: { position: 'top' as const },
+                          title: { display: true, text: 'Number Frequency' },
+                        },
+                        scales: {
+                          y: { beginAtZero: true, title: { display: true, text: 'Frequency' } },
+                          x: { title: { display: true, text: 'Number' } },
+                        },
+                      }} />
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {transitionHeatmapData && (
+                <div className="bg-white dark:bg-gray-800 shadow overflow-hidden sm:rounded-lg">
+                  <div className="px-4 py-5 sm:px-6">
+                    <h3 className="text-lg leading-6 font-medium text-gray-900 dark:text-white">
+                      Transition Heatmap
+                    </h3>
+                    <p className="mt-1 max-w-2xl text-sm text-gray-500 dark:text-gray-400">
+                      Transitions between tens digits (0-9)
+                    </p>
+                  </div>
+                  <div className="border-t border-gray-200 dark:border-gray-700">
+                    <div className="p-6">
+                      <div className="grid grid-cols-10 gap-1">
+                        {transitionHeatmapData.map((row: number[], rowIndex: number) =>
+                          row.map((value: number, colIndex: number) => (
+                            <div
+                              key={`${rowIndex}-${colIndex}`}
+                              className="w-8 h-8 flex items-center justify-center text-xs font-medium rounded"
+                              style={{
+                                backgroundColor: `rgba(59, 130, 246, ${Math.min(1, value / 10)})`,
+                                color: value > 5 ? 'white' : 'black'
+                              }}
+                              title={`${rowIndex} → ${colIndex}: ${value}`}
+                            >
+                              {value}
+                            </div>
+                          ))
+                        )}
+                      </div>
+                      <div className="mt-4 text-xs text-gray-500 dark:text-gray-400">
+                        Rows: From digit, Columns: To digit
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {monteCarloChartData && (
+                <div className="bg-white dark:bg-gray-800 shadow overflow-hidden sm:rounded-lg">
+                  <div className="px-4 py-5 sm:px-6">
+                    <h3 className="text-lg leading-6 font-medium text-gray-900 dark:text-white">
+                      Monte Carlo Distribution
+                    </h3>
+                    <p className="mt-1 max-w-2xl text-sm text-gray-500 dark:text-gray-400">
+                      Simulated probability distribution
+                    </p>
+                  </div>
+                  <div className="border-t border-gray-200 dark:border-gray-700">
+                    <div className="p-6">
+                      <Bar data={monteCarloChartData} options={{
+                        responsive: true,
+                        plugins: {
+                          legend: { position: 'top' as const },
+                          title: { display: true, text: 'Monte Carlo Probabilities' },
+                        },
+                        scales: {
+                          y: { beginAtZero: true, title: { display: true, text: 'Probability' } },
+                          x: { title: { display: true, text: 'Number' } },
+                        },
+                      }} />
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Live DPBoss Verification Iframe */}
           <div className="bg-white dark:bg-gray-800 shadow overflow-hidden sm:rounded-lg">

@@ -148,3 +148,74 @@
 {"level":"debug","message":"Found 32 frequency components","service":"matka-prediction-engine","timestamp":"2025-10-02 15:10:55"}
 {"level":"debug","message":"Cluster sizes: 38, 31, 31","service":"matka-prediction-engine","timestamp":"2025-10-02 15:10:55"}
 {"level":"info","message":"Backtest accuracy: 20.00% on 10 samples","service":"matka-prediction-engine","timestamp":"2025-10-02 15:10:55"}
+{"level":"info","message":"Generating predictions...","service":"matka-prediction-engine","timestamp":"2025-10-02 15:55:32"}
+{"level":"debug","message":"Stats - Mean: 49.15, Std: 29.24, Min: 0, Max: 97, Count: 100","service":"matka-prediction-engine","timestamp":"2025-10-02 15:55:32"}
+{"level":"debug","message":"Found 32 frequency components","service":"matka-prediction-engine","timestamp":"2025-10-02 15:55:33"}
+{"level":"debug","message":"Cluster sizes: 31, 26, 43","service":"matka-prediction-engine","timestamp":"2025-10-02 15:55:33"}
+{"level":"info","message":"Backtest accuracy: 20.00% on 10 samples","service":"matka-prediction-engine","timestamp":"2025-10-02 15:55:33"}
+{"level":"info","message":"Generating predictions...","service":"matka-prediction-engine","timestamp":"2025-10-02 15:55:33"}
+{"level":"debug","message":"Stats - Mean: 49.15, Std: 29.24, Min: 0, Max: 97, Count: 100","service":"matka-prediction-engine","timestamp":"2025-10-02 15:55:33"}
+{"level":"debug","message":"Found 32 frequency components","service":"matka-prediction-engine","timestamp":"2025-10-02 15:55:34"}
+{"level":"debug","message":"Cluster sizes: 35, 25, 40","service":"matka-prediction-engine","timestamp":"2025-10-02 15:55:34"}
+{"level":"info","message":"Backtest accuracy: 20.00% on 10 samples","service":"matka-prediction-engine","timestamp":"2025-10-02 15:55:34"}
+{"level":"info","message":"Generating predictions...","service":"matka-prediction-engine","timestamp":"2025-10-02 15:56:54"}
+{"level":"info","message":"Generating predictions...","service":"matka-prediction-engine","timestamp":"2025-10-02 16:03:25"}
+{"level":"debug","message":"Stats - Mean: 49.15, Std: 29.24, Min: 0, Max: 97, Count: 100","service":"matka-prediction-engine","timestamp":"2025-10-02 16:03:25"}
+{"level":"debug","message":"Found 32 frequency components","service":"matka-prediction-engine","timestamp":"2025-10-02 16:03:27"}
+{"level":"debug","message":"Cluster sizes: 25, 44, 31","service":"matka-prediction-engine","timestamp":"2025-10-02 16:03:27"}
+{"level":"info","message":"Backtest accuracy: 20.00% on 10 samples","service":"matka-prediction-engine","timestamp":"2025-10-02 16:03:27"}
+{"level":"info","message":"Generating predictions...","service":"matka-prediction-engine","timestamp":"2025-10-02 16:03:28"}
+{"level":"debug","message":"Stats - Mean: 49.15, Std: 29.24, Min: 0, Max: 97, Count: 100","service":"matka-prediction-engine","timestamp":"2025-10-02 16:03:28"}
+{"level":"debug","message":"Found 32 frequency components","service":"matka-prediction-engine","timestamp":"2025-10-02 16:03:30"}
+{"level":"debug","message":"Cluster sizes: 28, 41, 31","service":"matka-prediction-engine","timestamp":"2025-10-02 16:03:30"}
+{"level":"info","message":"Backtest accuracy: 20.00% on 10 samples","service":"matka-prediction-engine","timestamp":"2025-10-02 16:03:30"}
+{"level":"info","message":"Generating predictions...","service":"matka-prediction-engine","timestamp":"2025-10-02 16:03:35"}
+{"level":"debug","message":"Stats - Mean: 49.15, Std: 29.24, Min: 0, Max: 97, Count: 100","service":"matka-prediction-engine","timestamp":"2025-10-02 16:03:35"}
+{"level":"debug","message":"Found 32 frequency components","service":"matka-prediction-engine","timestamp":"2025-10-02 16:03:36"}
+{"level":"debug","message":"Cluster sizes: 40, 25, 35","service":"matka-prediction-engine","timestamp":"2025-10-02 16:03:36"}
+{"level":"info","message":"Backtest accuracy: 20.00% on 10 samples","service":"matka-prediction-engine","timestamp":"2025-10-02 16:03:36"}
+{"level":"info","message":"Generating predictions...","service":"matka-prediction-engine","timestamp":"2025-10-02 16:03:37"}
+{"level":"debug","message":"Stats - Mean: 49.15, Std: 29.24, Min: 0, Max: 97, Count: 100","service":"matka-prediction-engine","timestamp":"2025-10-02 16:03:37"}
+{"level":"debug","message":"Found 32 frequency components","service":"matka-prediction-engine","timestamp":"2025-10-02 16:03:38"}
+{"level":"debug","message":"Cluster sizes: 40, 35, 25","service":"matka-prediction-engine","timestamp":"2025-10-02 16:03:38"}
+{"level":"info","message":"Backtest accuracy: 20.00% on 10 samples","service":"matka-prediction-engine","timestamp":"2025-10-02 16:03:38"}
+{"level":"info","message":"Generating predictions...","service":"matka-prediction-engine","timestamp":"2025-10-02 16:05:06"}
+{"level":"debug","message":"Stats - Mean: 49.15, Std: 29.24, Min: 0, Max: 97, Count: 100","service":"matka-prediction-engine","timestamp":"2025-10-02 16:05:06"}
+{"level":"debug","message":"Found 32 frequency components","service":"matka-prediction-engine","timestamp":"2025-10-02 16:05:07"}
+{"level":"debug","message":"Cluster sizes: 39, 35, 26","service":"matka-prediction-engine","timestamp":"2025-10-02 16:05:07"}
+{"level":"info","message":"Backtest accuracy: 20.00% on 10 samples","service":"matka-prediction-engine","timestamp":"2025-10-02 16:05:07"}
+{"level":"info","message":"Generating predictions...","service":"matka-prediction-engine","timestamp":"2025-10-02 16:05:07"}
+{"level":"debug","message":"Stats - Mean: 49.15, Std: 29.24, Min: 0, Max: 97, Count: 100","service":"matka-prediction-engine","timestamp":"2025-10-02 16:05:07"}
+{"level":"debug","message":"Found 32 frequency components","service":"matka-prediction-engine","timestamp":"2025-10-02 16:05:09"}
+{"level":"debug","message":"Cluster sizes: 26, 43, 31","service":"matka-prediction-engine","timestamp":"2025-10-02 16:05:09"}
+{"level":"info","message":"Backtest accuracy: 20.00% on 10 samples","service":"matka-prediction-engine","timestamp":"2025-10-02 16:05:09"}
+{"level":"info","message":"Generating predictions...","service":"matka-prediction-engine","timestamp":"2025-10-02 16:19:36"}
+{"level":"debug","message":"Stats - Mean: 49.15, Std: 29.24, Min: 0, Max: 97, Count: 100","service":"matka-prediction-engine","timestamp":"2025-10-02 16:19:36"}
+{"level":"debug","message":"Found 32 frequency components","service":"matka-prediction-engine","timestamp":"2025-10-02 16:19:37"}
+{"level":"debug","message":"Cluster sizes: 35, 40, 25","service":"matka-prediction-engine","timestamp":"2025-10-02 16:19:37"}
+{"level":"info","message":"Backtest accuracy: 20.00% on 10 samples","service":"matka-prediction-engine","timestamp":"2025-10-02 16:19:37"}
+{"level":"info","message":"Generating predictions...","service":"matka-prediction-engine","timestamp":"2025-10-02 16:19:38"}
+{"level":"debug","message":"Stats - Mean: 49.15, Std: 29.24, Min: 0, Max: 97, Count: 100","service":"matka-prediction-engine","timestamp":"2025-10-02 16:19:38"}
+{"level":"debug","message":"Found 32 frequency components","service":"matka-prediction-engine","timestamp":"2025-10-02 16:19:41"}
+{"level":"debug","message":"Cluster sizes: 35, 40, 25","service":"matka-prediction-engine","timestamp":"2025-10-02 16:19:41"}
+{"level":"info","message":"Backtest accuracy: 20.00% on 10 samples","service":"matka-prediction-engine","timestamp":"2025-10-02 16:19:41"}
+{"level":"info","message":"Generating predictions...","service":"matka-prediction-engine","timestamp":"2025-10-02 16:19:41"}
+{"level":"debug","message":"Stats - Mean: 49.15, Std: 29.24, Min: 0, Max: 97, Count: 100","service":"matka-prediction-engine","timestamp":"2025-10-02 16:19:41"}
+{"level":"debug","message":"Found 32 frequency components","service":"matka-prediction-engine","timestamp":"2025-10-02 16:19:44"}
+{"level":"debug","message":"Cluster sizes: 32, 26, 42","service":"matka-prediction-engine","timestamp":"2025-10-02 16:19:44"}
+{"level":"info","message":"Backtest accuracy: 20.00% on 10 samples","service":"matka-prediction-engine","timestamp":"2025-10-02 16:19:44"}
+{"level":"info","message":"Generating predictions...","service":"matka-prediction-engine","timestamp":"2025-10-02 16:19:44"}
+{"level":"debug","message":"Stats - Mean: 49.15, Std: 29.24, Min: 0, Max: 97, Count: 100","service":"matka-prediction-engine","timestamp":"2025-10-02 16:19:44"}
+{"level":"debug","message":"Found 32 frequency components","service":"matka-prediction-engine","timestamp":"2025-10-02 16:19:45"}
+{"level":"debug","message":"Cluster sizes: 40, 25, 35","service":"matka-prediction-engine","timestamp":"2025-10-02 16:19:45"}
+{"level":"info","message":"Backtest accuracy: 20.00% on 10 samples","service":"matka-prediction-engine","timestamp":"2025-10-02 16:19:45"}
+{"level":"info","message":"Generating predictions...","service":"matka-prediction-engine","timestamp":"2025-10-02 16:20:46"}
+{"level":"debug","message":"Stats - Mean: 49.15, Std: 29.24, Min: 0, Max: 97, Count: 100","service":"matka-prediction-engine","timestamp":"2025-10-02 16:20:46"}
+{"level":"debug","message":"Found 32 frequency components","service":"matka-prediction-engine","timestamp":"2025-10-02 16:20:46"}
+{"level":"debug","message":"Cluster sizes: 30, 41, 29","service":"matka-prediction-engine","timestamp":"2025-10-02 16:20:46"}
+{"level":"info","message":"Backtest accuracy: 20.00% on 10 samples","service":"matka-prediction-engine","timestamp":"2025-10-02 16:20:46"}
+{"level":"info","message":"Generating predictions...","service":"matka-prediction-engine","timestamp":"2025-10-02 16:20:46"}
+{"level":"debug","message":"Stats - Mean: 49.15, Std: 29.24, Min: 0, Max: 97, Count: 100","service":"matka-prediction-engine","timestamp":"2025-10-02 16:20:46"}
+{"level":"debug","message":"Found 32 frequency components","service":"matka-prediction-engine","timestamp":"2025-10-02 16:20:47"}
+{"level":"debug","message":"Cluster sizes: 31, 43, 26","service":"matka-prediction-engine","timestamp":"2025-10-02 16:20:47"}
+{"level":"info","message":"Backtest accuracy: 20.00% on 10 samples","service":"matka-prediction-engine","timestamp":"2025-10-02 16:20:47"}

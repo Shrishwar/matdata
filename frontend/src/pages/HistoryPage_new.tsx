@@ -29,7 +29,11 @@ const HistoryPage = () => {
     try {
       setIsLoading(true);
       const response = await resultsAPI.getHistory();
-      setResults(response.data.history);
+      // Ensure results are sorted by date descending (newest first)
+      const sortedResults = response.data.history.sort((a: Result, b: Result) =>
+        new Date(b.date).getTime() - new Date(a.date).getTime()
+      );
+      setResults(sortedResults);
       setError(null);
     } catch (err: any) {
       console.error('Failed to fetch history:', err.response?.data || err.message);
