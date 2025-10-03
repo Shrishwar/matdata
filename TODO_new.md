@@ -1,32 +1,42 @@
-# Matka Prediction System Patch TODO
+# TODO: Fix Matka Site to Fetch Live DPBoss Data and Fix Prediction Buttons
 
-## Backend Service
-- [x] Modify dpbossScraper.js to add dpbossFetch() service that runs every X minutes (configurable), fetches latest from DPBoss, parses canonical record, idempotent insert into results collection.
-- [x] Add logging for each fetch with timestamps and raw HTML payload.
+## Step 1: Scraper Fixes
+- Verify scrapeLatest and scrapeHistory fetch live DPBoss HTML for all panels.
+- Add retry and fallback logic if missing.
+- Validate parsed data strictly and log errors.
+- Ensure skipping off-days in history scraping.
 
-## API Routes
-- [x] Ensure GET /api/history returns sorted draws from DB (check if /api/results/history is correct).
-- [x] Change GET /api/predictions/next to POST /api/predictions/next, trigger prediction pipeline on latest DB data, return top 5-10 with probability/explanation.
+## Step 2: Sync Service
+- Verify dpbossSync service runs every 2-5 minutes.
+- Ensure initial backfill and periodic fetchLatest work correctly.
+- Add error handling and logging.
 
-## Sync
-- [x] Implement websocket server for real-time updates; modify frontend to subscribe and auto-append new draws.
-- [x] Modify frontend HistoryPage to subscribe to websocket and auto-append new draws in correct order.
+## Step 3: API Fixes
+- Verify /api/predictions/latest and /api/predictions/history return fresh data.
+- Ensure /api/predictions/next uses hybrid logic correctly.
+- Add no-cache headers in API responses.
 
-## Prediction
-- [x] Ensure prediction pipeline is deterministic: frequency, markov, autocorr, ML ensemble (DecisionTree+RandomForest), Monte Carlo (seed=42).
-- [x] On new draw insert, trigger pipeline automatically.
-- [x] Return top 5-10 predicted numbers with probability and explanation.
+## Step 4: Frontend Fixes
+- Ensure API calls use no-cache headers.
+- Fix buttons (Predictions, Analysis, Refresh, Hybrid Top 3) to call correct APIs.
+- Remove old dummy chart logic if present.
 
-## Frontend
-- [x] HistoryPage subscribes to websocket → auto-append new draws.
-- [x] PredictionsPage: add "Generate Next Prediction" button → calls POST /api/predictions/next → shows top predictions + explanation + charts.
+## Step 5: Testing
+- Test end-to-end for all panels.
+- Confirm site shows exact latest DPBoss data within 2-5 minutes.
+- Test prediction buttons for correct functionality.
 
-## Stability
-- [x] If DPBoss unreachable → return 503 with message, do not fallback to random.
-- [x] Add logs for each prediction with timestamps.
+## Step 6: Logging and Monitoring
+- Add detailed logging in scraper, sync, API, and frontend.
+- Monitor logs for errors or stale data.
 
-## Testing
-- [ ] Test DPBoss fetch and DB insert.
-- [ ] Verify websocket updates frontend.
-- [ ] Confirm predictions are deterministic and from real data.
-- [ ] Audit logs for fetches and predictions.
+---
+
+## New Task: Remove Live DPBoss Verification Real-time Panel Chart from Home Page
+
+## Step 1: Edit HomePage.tsx
+- Remove the entire "Live DPBoss Verification" iframe section from frontend/src/pages/HomePage.tsx.
+
+## Step 2: Verify Changes
+- Ensure the home page loads correctly without the iframe.
+- Confirm no other functionalities are broken.

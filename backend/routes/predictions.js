@@ -856,6 +856,11 @@ router.get('/latest',
         }
       };
 
+      // Add no-cache headers to ensure fresh data
+      res.set('Cache-Control', 'no-cache, no-store, must-revalidate');
+      res.set('Pragma', 'no-cache');
+      res.set('Expires', '0');
+
       res.json(response);
     } catch (error) {
       logger.error('Latest result fetch error:', { error: error.message, stack: error.stack });

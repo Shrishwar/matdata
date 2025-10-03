@@ -59,9 +59,28 @@ const PredictionsPage = () => {
     try {
       setIsLoading(true);
       console.log('Fetching predictions...');
-      const response = await predictionApi.getPredictions(3, selectedPanel);
+
+      // First, fetch latest result and last 100 days history from DPBoss
+      const [latestRes, historyRes] = await Promise.all([
+        fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/results/fetch-latest`, {
+          headers: { 'Cache-Control': 'no-cache' },
+        }),
+        fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/history?limit=100&panel=${selectedPanel}`, {
+          headers: { 'Cache-Control': 'no-cache' },
+        })
+      ]);
+
+      const latestData = await latestRes.json();
+      const historyData = await historyRes.json();
+
+      if (latestData.ok) {
+        setLatestResult(latestData.latest);
+      }
+
+      // Generate next-day predictions for Open, Close, and Double using hybrid logic
+      const response = await predictionApi.getPredictions(5, selectedPanel);
       console.log('Predictions response:', response);
-      
+
       if (response.success) {
         setPredictions(response.data.predictions);
         setAnalysis(response.data.analysis);
@@ -70,7 +89,7 @@ const PredictionsPage = () => {
       } else {
         // fallback to hybrid top 3
         try {
-          const resp = await predictionApi.getCombined(3);
+          const resp = await predictionApi.getCombined(5, selectedPanel);
           if (resp.success) {
             setPredictions(resp.data.top.map((t: any) => ({ number: t.number, confidence: t.confidence })));
             setAnalysis({ combinedExplain: resp.data.top });
@@ -93,10 +112,29 @@ const PredictionsPage = () => {
   const fetchCombined = async () => {
     try {
       setIsLoading(true);
-      const resp = await predictionApi.getCombined(3);
+      // Fetch latest result and history first to ensure synced data
+      const [latestRes, historyRes] = await Promise.all([
+        fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/results/fetch-latest`, {
+          headers: { 'Cache-Control': 'no-cache' },
+        }),
+        fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/history?limit=100&panel=${selectedPanel}`, {
+          headers: { 'Cache-Control': 'no-cache' },
+        })
+      ]);
+
+      const latestData = await latestRes.json();
+      const historyData = await historyRes.json();
+
+      if (latestData.ok) {
+        setLatestResult(latestData.latest);
+      }
+
+      // Fetch hybrid top 3 predictions using synced data
+      const resp = await predictionApi.getCombined(3, selectedPanel);
       if (resp.success) {
         setPredictions(resp.data.top.map((t: any) => ({ number: t.number, confidence: t.confidence })));
         setAnalysis({ combinedExplain: resp.data.top });
+        setLastUpdated(new Date());
       }
     } catch (e) {
       console.error('Error fetching combined predictions', e);
@@ -133,21 +171,23 @@ const PredictionsPage = () => {
   const fetchLiveData = async () => {
     try {
       setLiveLoading(true);
-      console.log('Fetching live data...');
+      console.log('Fetching live DPBoss data...');
       const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/results/fetch-latest`, {
         headers: { 'Cache-Control': 'no-cache' },
       });
       const data = await response.json();
-      console.log('Live data response:', data);
+      console.log('Live DPBoss data response:', data);
 
       if (data.ok) {
         setLiveData(data.latest);
+        // Sync latest result with live DPBoss data
+        setLatestResult(data.latest);
       } else {
         toast.error('Failed to fetch live DPBoss data');
       }
     } catch (error) {
-      console.error('Error fetching live data:', error);
-      toast.error('Error fetching live data');
+      console.error('Error fetching live DPBoss data:', error);
+      toast.error('Error fetching live DPBoss data');
     } finally {
       setLiveLoading(false);
     }
@@ -340,8 +380,8 @@ const PredictionsPage = () => {
           </div>
         </div>
 
-        {/* Latest Result Display */}
-        {latestResult && !latestLoading && (
+        {/* Latest Result Display - Synced with Live DPBoss Chart */}
+        {(latestResult || liveData) && !latestLoading && (
           <div className="mb-6 bg-blue-50 border-l-4 border-blue-400 p-4">
             <div className="flex">
               <div className="flex-shrink-0">
@@ -351,9 +391,9 @@ const PredictionsPage = () => {
               </div>
               <div className="ml-3">
                 <p className="text-sm text-blue-700">
-                  <strong>Latest {PANELS.find(p => p.key === selectedPanel)?.name} Result:</strong> {latestResult.double ? latestResult.double : 'N/A'}
-                  {latestResult.date && <span className="ml-2">on {new Date(latestResult.date).toLocaleDateString()}</span>}
-                  {latestResult.open3d && <span className="ml-2">(Open: {latestResult.open3d}, Close: {latestResult.close3d})</span>}
+                  <strong>Latest {PANELS.find(p => p.key === selectedPanel)?.name} Result:</strong> {(latestResult?.double || liveData?.middle) ? (latestResult?.double || liveData?.middle) : 'N/A'}
+                  {(latestResult?.date || liveData?.date) && <span className="ml-2">on {new Date(latestResult?.date || liveData?.date).toLocaleDateString()}</span>}
+                  {(latestResult?.open3 || liveData?.open3) && <span className="ml-2">(Open: {latestResult?.open3 || liveData?.open3}, Close: {latestResult?.close3 || liveData?.close3})</span>}
                 </p>
               </div>
             </div>
@@ -377,21 +417,22 @@ const PredictionsPage = () => {
         )}
 
         {liveData && !liveLoading && (
-      <div className="mb-6 bg-green-50 border-l-4 border-green-400 p-4">
-        <div className="flex">
-          <div className="flex-shrink-0">
-            <svg className="h-5 w-5 text-green-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-              <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-            </svg>
+          <div className="mb-6 bg-green-50 border-l-4 border-green-400 p-4">
+            <div className="flex">
+              <div className="flex-shrink-0">
+                <svg className="h-5 w-5 text-green-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                </svg>
+              </div>
+              <div className="ml-3">
+                <p className="text-sm text-green-700">
+                  <strong>Live DPBoss Result:</strong> <span className="font-medium">{liveData.double || liveData.middle || 'N/A'}</span>
+                  {liveData.date && <span className="ml-2">on {new Date(liveData.date).toLocaleDateString()}</span>}
+                  {liveData.open3 && <span className="ml-2">(Open: {liveData.open3}, Close: {liveData.close3})</span>}
+                </p>
+              </div>
+            </div>
           </div>
-          <div className="ml-3">
-            <p className="text-sm text-green-700">
-              Latest DPBoss Result: <span className="font-medium">{liveData.middle ? liveData.middle : 'N/A'}</span>
-              {liveData.date && <span className="ml-2">on {new Date(liveData.date).toLocaleDateString()}</span>}
-            </p>
-          </div>
-        </div>
-      </div>
         )}
 
         {activeTab === 'predictions' ? (

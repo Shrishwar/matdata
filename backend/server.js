@@ -171,6 +171,17 @@ const startServer = async () => {
       console.log(`Server running in ${process.env.NODE_ENV || 'development'} mode on port ${PORT}`);
     });
 
+    server.on('error', (error) => {
+      if (error.code === 'EADDRINUSE') {
+        console.error(`Port ${PORT} is already in use. Please kill the process using this port or use a different port.`);
+        console.error(`On Windows, you can run: netstat -ano | findstr :${PORT}`);
+        console.error(`Then kill the process with: taskkill /PID <PID> /F`);
+        process.exit(1);
+      } else {
+        console.error('Server error:', error);
+      }
+    });
+
     // WebSocket server
     const wss = new WebSocket.Server({ server });
     const wsClients = new Set();

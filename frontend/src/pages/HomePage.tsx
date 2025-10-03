@@ -112,6 +112,19 @@ const HomePage = () => {
   const fetchData = async () => {
     try {
       setIsLoading(true);
+      // Always fetch latest result first to ensure live data
+      try {
+        const latestRes = await resultsAPI.fetchLatest();
+        const today = new Date();
+        const yesterday = new Date(today);
+        yesterday.setDate(yesterday.getDate() - 1);
+        const latestDate = new Date(latestRes.data.date);
+        const isLiveConfirmed = isToday(latestDate) || isYesterday(latestDate);
+        setLatest({ ...latestRes.data, isLiveConfirmed });
+      } catch (latestErr) {
+        console.warn('Failed to fetch latest result:', latestErr);
+      }
+
       // Load future first; guesses may fail independently
       try {
         const futureRes = await resultsAPI.getFuture();
@@ -676,30 +689,6 @@ const fetchChartData = async () => {
               )}
             </div>
           )}
-
-          {/* Live DPBoss Verification Iframe */}
-          <div className="bg-white dark:bg-gray-800 shadow overflow-hidden sm:rounded-lg">
-            <div className="px-4 py-5 sm:px-6">
-              <h3 className="text-lg leading-6 font-medium text-gray-900 dark:text-white">
-                Live DPBoss Verification
-              </h3>
-              <p className="mt-1 max-w-2xl text-sm text-gray-500 dark:text-gray-400">
-                Real-time panel chart from source (for manual verification)
-              </p>
-            </div>
-            <div className="border-t border-gray-200 dark:border-gray-700">
-              <div className="p-6">
-                <iframe
-                  src="https://dpboss.boston/panel-chart-record/main-bazar.php"
-                  width="100%"
-                  height="400"
-                  title="DPBoss Main Bazar Panel Chart"
-                  className="border rounded-lg"
-                  loading="lazy"
-                />
-              </div>
-            </div>
-          </div>
         </>
       )}
     </div>

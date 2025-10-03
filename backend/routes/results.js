@@ -3,6 +3,7 @@ const express = require('express');
 const router = express.Router();
 const { dpbossFetch, bulkScrape, getPanelConfig, scrapeLatest, scrapeHistory, getLiveExtracted, uploadCsvFallback } = require('../services/scraper/dpbossScraper');
 const Result = require('../models/Result');
+const { auth, admin } = require('../middleware/auth');
 
 // POST /api/dpboss/sync?panel=MAIN_BAZAR&mode=latest|full&days=180
 router.post('/dpboss/sync', async (req, res) => {
@@ -276,6 +277,24 @@ router.post('/bulk', upload.single('file'), auth, admin, async (req, res) => {
       message: 'Error importing results',
       error: error.message,
     });
+  }
+});
+
+// New DELETE route for deleting a result by ID
+// @route   DELETE /api/results/:id
+// @desc    Delete a result by ID
+// @access  Private/Admin
+router.delete('/:id', auth, admin, async (req, res) => {
+  try {
+    const resultId = req.params.id;
+    const deleted = await Result.findByIdAndDelete(resultId);
+    if (!deleted) {
+      return res.status(404).json({ message: 'Result not found' });
+    }
+    res.json({ message: 'Result deleted successfully', deleted });
+  } catch (error) {
+    console.error('Error deleting result:', error);
+    res.status(500).json({ message: 'Server error deleting result', error: error.message });
   }
 });
 

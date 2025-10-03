@@ -331,7 +331,7 @@ async function getLiveExtracted(panel = 'MAIN_BAZAR') {
 }
 
 async function scrapeLatest(panel = 'MAIN_BAZAR') {
-  const maxRetries = 3;
+  const maxRetries = 5;
   let lastError;
 
   for (let attempt = 1; attempt <= maxRetries; attempt++) {

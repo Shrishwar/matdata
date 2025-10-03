@@ -199,6 +199,7 @@ export const predictionApi = {
       const response = await api.get('/api/predictions/next', {
         params: { limit, panel },
         timeout: 60000, // 1 minute timeout for predictions
+        headers: { 'Cache-Control': 'no-cache, no-store, must-revalidate' },
       });
       return { success: response.data.success, data: response.data.data, status: response.status };
     } catch (error) {
